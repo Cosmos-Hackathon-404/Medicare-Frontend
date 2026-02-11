@@ -1,303 +1,351 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import Link from 'next/link';
-import { FileText, Download, Eye, Filter, Calendar, Search, Plus, TrendingUp } from 'lucide-react';
+import { useState } from "react";
+import Link from "next/link";
+import {
+  FileText,
+  Download,
+  Eye,
+  Calendar,
+  Search,
+  AlertCircle,
+  Upload,
+  Image,
+  Sparkles,
+  TrendingUp,
+} from "lucide-react";
+import PageHeader from "@/components/doctor/page-header";
+import StatusBadge from "@/components/doctor/status-badge";
+
+// Mock data based on Convex reports schema
+const reports = [
+  {
+    _id: "rep_001",
+    patientClerkId: "clerk_pat_001",
+    doctorClerkId: "clerk_doc_001",
+    patientName: "John Doe",
+    fileName: "blood_work_results.pdf",
+    fileType: "pdf" as const,
+    aiSummary: "Complete blood count normal. Lipid panel shows elevated LDL at 180mg/dL requiring attention.",
+    criticalFlags: [
+      { issue: "Elevated LDL Cholesterol", severity: "high", details: "LDL at 180mg/dL (target: <130mg/dL)" },
+    ],
+    supermemoryDocId: "sm_001",
+    uploadDate: "2026-02-10",
+  },
+  {
+    _id: "rep_002",
+    patientClerkId: "clerk_pat_002",
+    doctorClerkId: "clerk_doc_001",
+    patientName: "Jane Smith",
+    fileName: "ecg_scan.pdf",
+    fileType: "pdf" as const,
+    aiSummary: "ECG shows normal sinus rhythm. No ST-segment changes. Heart rate 72bpm.",
+    criticalFlags: [],
+    uploadDate: "2026-02-09",
+  },
+  {
+    _id: "rep_003",
+    patientClerkId: "clerk_pat_003",
+    doctorClerkId: "clerk_doc_001",
+    patientName: "Mike Johnson",
+    fileName: "chest_xray.image",
+    fileType: "image" as const,
+    aiSummary: "Chest X-ray showing mild cardiomegaly. Further echocardiogram recommended.",
+    criticalFlags: [
+      { issue: "Cardiomegaly", severity: "medium", details: "Heart appears mildly enlarged on PA view" },
+    ],
+    uploadDate: "2026-02-08",
+  },
+  {
+    _id: "rep_004",
+    patientClerkId: "clerk_pat_004",
+    doctorClerkId: "clerk_doc_001",
+    patientName: "Sarah Williams",
+    fileName: "a1c_lab_report.pdf",
+    fileType: "pdf" as const,
+    aiSummary: "HbA1c at 7.2% showing fair glycemic control. Fasting glucose 125mg/dL.",
+    criticalFlags: [
+      { issue: "Elevated HbA1c", severity: "medium", details: "A1C 7.2% (target: <7.0%)" },
+    ],
+    uploadDate: "2026-02-07",
+  },
+  {
+    _id: "rep_005",
+    patientClerkId: "clerk_pat_005",
+    patientName: "Robert Brown",
+    fileName: "thyroid_panel.pdf",
+    fileType: "pdf" as const,
+    aiSummary: "Thyroid function tests within normal limits. TSH 2.1 mIU/L.",
+    criticalFlags: [],
+    uploadDate: "2026-02-06",
+  },
+  {
+    _id: "rep_006",
+    patientClerkId: "clerk_pat_001",
+    doctorClerkId: "clerk_doc_001",
+    patientName: "John Doe",
+    fileName: "mri_knee.image",
+    fileType: "image" as const,
+    aiSummary: "MRI of right knee. Mild meniscal degeneration. No acute tear.",
+    criticalFlags: [
+      { issue: "Meniscal Degeneration", severity: "low", details: "Grade 1 signal in medial meniscus" },
+    ],
+    uploadDate: "2026-02-05",
+  },
+];
+
+const filterOptions = [
+  { value: "all", label: "All Reports" },
+  { value: "critical", label: "Critical Flags" },
+  { value: "pdf", label: "PDF" },
+  { value: "image", label: "Images" },
+];
 
 export default function ReportsPage() {
-  const [selectedFilter, setSelectedFilter] = useState('all');
+  const [selectedFilter, setSelectedFilter] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
 
-  const reports = [
-    {
-      id: '1',
-      title: 'Medical Certificate - John Doe',
-      type: 'Medical Certificate',
-      patient: 'John Doe',
-      patientId: 'p1',
-      date: '2024-02-10',
-      status: 'completed',
-      generatedBy: 'Dr. Anderson',
-    },
-    {
-      id: '2',
-      title: 'Prescription - Sarah Smith',
-      type: 'Prescription',
-      patient: 'Sarah Smith',
-      patientId: 'p2',
-      date: '2024-02-09',
-      status: 'completed',
-      generatedBy: 'Dr. Anderson',
-    },
-    {
-      id: '3',
-      title: 'Lab Results - Mike Johnson',
-      type: 'Lab Report',
-      patient: 'Mike Johnson',
-      patientId: 'p3',
-      date: '2024-02-08',
-      status: 'pending',
-      generatedBy: 'Dr. Anderson',
-    },
-    {
-      id: '4',
-      title: 'Consultation Summary - Emma Wilson',
-      type: 'Consultation Summary',
-      patient: 'Emma Wilson',
-      patientId: 'p4',
-      date: '2024-02-07',
-      status: 'completed',
-      generatedBy: 'Dr. Anderson',
-    },
-    {
-      id: '5',
-      title: 'Follow-up Report - David Brown',
-      type: 'Follow-up Report',
-      patient: 'David Brown',
-      patientId: 'p5',
-      date: '2024-02-06',
-      status: 'completed',
-      generatedBy: 'Dr. Anderson',
-    },
-    {
-      id: '6',
-      title: 'Referral Letter - Lisa Anderson',
-      type: 'Referral',
-      patient: 'Lisa Anderson',
-      patientId: 'p6',
-      date: '2024-02-05',
-      status: 'completed',
-      generatedBy: 'Dr. Anderson',
-    },
-  ];
+  const filteredReports = reports.filter((report) => {
+    const matchesSearch =
+      !searchQuery ||
+      report.patientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      report.fileName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      report.aiSummary?.toLowerCase().includes(searchQuery.toLowerCase());
 
-  const reportTypes = [
-    { value: 'all', label: 'All Reports', count: reports.length },
-    { value: 'prescription', label: 'Prescriptions', count: reports.filter(r => r.type === 'Prescription').length },
-    { value: 'lab', label: 'Lab Reports', count: reports.filter(r => r.type === 'Lab Report').length },
-    { value: 'certificate', label: 'Medical Certificates', count: reports.filter(r => r.type === 'Medical Certificate').length },
-    { value: 'consultation', label: 'Consultation Summaries', count: reports.filter(r => r.type === 'Consultation Summary').length },
-  ];
+    const matchesFilter =
+      selectedFilter === "all" ||
+      (selectedFilter === "critical" && report.criticalFlags.length > 0) ||
+      (selectedFilter === "pdf" && report.fileType === "pdf") ||
+      (selectedFilter === "image" && report.fileType === "image");
 
-  const stats = [
-    { label: 'Total Reports', value: reports.length, color: 'bg-blue-500' },
-    { label: 'This Month', value: reports.filter(r => new Date(r.date).getMonth() === 1).length, color: 'bg-green-500' },
-    { label: 'Pending', value: reports.filter(r => r.status === 'pending').length, color: 'bg-yellow-500' },
-    { label: 'Completed', value: reports.filter(r => r.status === 'completed').length, color: 'bg-purple-500' },
-  ];
+    return matchesSearch && matchesFilter;
+  });
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed': return 'bg-green-100 text-green-800';
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'draft': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getTypeIcon = (type: string) => {
-    return FileText; // You can customize icons based on type
+  const stats = {
+    total: reports.length,
+    critical: reports.filter((r) => r.criticalFlags.some((f) => f.severity === "high")).length,
+    thisWeek: reports.filter((r) => new Date(r.uploadDate) >= new Date("2026-02-05")).length,
+    aiProcessed: reports.filter((r) => r.aiSummary).length,
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-between items-center">
-            <div>
-              <Link href="/doctor/dashboard" className="text-blue-600 hover:text-blue-700 text-sm font-medium mb-2 inline-block">
-                ← Back to Dashboard
-              </Link>
-              <h1 className="text-3xl font-bold text-gray-900">Medical Reports</h1>
-              <p className="text-gray-600 mt-1">View and manage all patient reports</p>
-            </div>
-            <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2">
-              <Plus size={20} />
-              Generate New Report
-            </button>
-          </div>
-        </div>
-      </header>
+    <div>
+      <PageHeader
+        title="Medical Reports"
+        subtitle="View, analyze, and manage patient reports with AI insights"
+        actions={
+          <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium flex items-center gap-2">
+            <Upload className="w-4 h-4" />
+            Upload Report
+          </button>
+        }
+      />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          {stats.map((stat) => (
-            <div key={stat.label} className="bg-white rounded-lg shadow p-6">
-              <div className={`${stat.color} w-12 h-12 rounded-lg flex items-center justify-center mb-4`}>
-                <FileText className="text-white" size={24} />
+      <div className="p-6 lg:p-8 space-y-6">
+        {/* Stats */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[
+            { label: "Total Reports", value: stats.total, icon: FileText, color: "bg-blue-50 text-blue-600" },
+            { label: "Critical Flags", value: stats.critical, icon: AlertCircle, color: "bg-red-50 text-red-600" },
+            { label: "This Week", value: stats.thisWeek, icon: Calendar, color: "bg-emerald-50 text-emerald-600" },
+            { label: "AI Processed", value: stats.aiProcessed, icon: Sparkles, color: "bg-purple-50 text-purple-600" },
+          ].map((stat) => (
+            <div key={stat.label} className="bg-white rounded-xl border border-gray-200 p-5">
+              <div className="flex items-center gap-3">
+                <div className={`p-2.5 rounded-lg ${stat.color}`}>
+                  <stat.icon className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                  <p className="text-xs text-gray-500">{stat.label}</p>
+                </div>
               </div>
-              <h3 className="text-3xl font-bold mb-1">{stat.value}</h3>
-              <p className="text-gray-600 text-sm">{stat.label}</p>
             </div>
           ))}
         </div>
 
-        {/* Filters and Search */}
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <div className="flex flex-col lg:flex-row gap-4">
+        {/* Filters */}
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="flex flex-col sm:flex-row gap-3">
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search reports or patients..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Search reports, patients, or AI summaries..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
               />
             </div>
             <div className="flex gap-2">
-              <select className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                <option>All Status</option>
-                <option>Completed</option>
-                <option>Pending</option>
-                <option>Draft</option>
-              </select>
-              <button className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2">
-                <Calendar size={20} />
-                Date Range
-              </button>
+              {filterOptions.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => setSelectedFilter(opt.value)}
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
+                    selectedFilter === opt.value
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
             </div>
-          </div>
-
-          {/* Report Type Filters */}
-          <div className="flex gap-2 mt-4 overflow-x-auto pb-2">
-            {reportTypes.map((type) => (
-              <button
-                key={type.value}
-                onClick={() => setSelectedFilter(type.value)}
-                className={`px-4 py-2 rounded-lg whitespace-nowrap transition-colors ${
-                  selectedFilter === type.value
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                {type.label} ({type.count})
-              </button>
-            ))}
           </div>
         </div>
 
         {/* Reports List */}
-        <div className="bg-white rounded-lg shadow">
-          <div className="p-6 border-b border-gray-200">
-            <h2 className="text-xl font-semibold">Recent Reports</h2>
-          </div>
-          <div className="divide-y divide-gray-200">
-            {reports.map((report) => {
-              const TypeIcon = getTypeIcon(report.type);
-              return (
-                <div key={report.id} className="p-6 hover:bg-gray-50 transition-colors">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-start gap-4 flex-1">
-                      <div className="flex-shrink-0 w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <TypeIcon className="text-blue-600" size={24} />
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="text-lg font-semibold text-gray-900">{report.title}</h3>
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(report.status)}`}>
-                            {report.status}
-                          </span>
-                        </div>
-                        <div className="flex flex-wrap gap-4 text-sm text-gray-600">
-                          <span className="flex items-center gap-1">
-                            <FileText size={16} />
-                            {report.type}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Calendar size={16} />
-                            {new Date(report.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                          </span>
-                          <Link 
-                            href={`/doctor/patient/${report.patientId}`}
-                            className="text-blue-600 hover:text-blue-700"
-                          >
-                            Patient: {report.patient}
-                          </Link>
-                        </div>
-                        <p className="text-xs text-gray-500 mt-2">Generated by {report.generatedBy}</p>
+        <div className="space-y-4">
+          {filteredReports.map((report) => (
+            <div
+              key={report._id}
+              className="bg-white rounded-xl border border-gray-200 p-5 hover:border-blue-200 hover:shadow-sm transition-all"
+            >
+              <div className="flex items-start gap-4">
+                <div
+                  className={`p-3 rounded-xl flex-shrink-0 ${
+                    report.fileType === "pdf"
+                      ? "bg-red-50 text-red-600"
+                      : "bg-indigo-50 text-indigo-600"
+                  }`}
+                >
+                  {report.fileType === "pdf" ? (
+                    <FileText className="w-6 h-6" />
+                  ) : (
+                    <Image className="w-6 h-6" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-3 mb-2">
+                    <div>
+                      <h3 className="font-semibold text-gray-900 text-sm">
+                        {report.fileName}
+                      </h3>
+                      <div className="flex items-center gap-3 mt-1">
+                        <Link
+                          href={`/doctor/patient/${report.patientClerkId}`}
+                          className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                        >
+                          {report.patientName}
+                        </Link>
+                        <span className="text-xs text-gray-400">
+                          {new Date(report.uploadDate).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          })}
+                        </span>
+                        <span className="text-xs text-gray-400 uppercase">
+                          {report.fileType}
+                        </span>
                       </div>
                     </div>
-                    <div className="flex gap-2">
-                      <button className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50" title="View Report">
-                        <Eye size={20} className="text-gray-600" />
+                    <div className="flex gap-1.5">
+                      <button className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors" title="View">
+                        <Eye className="w-4 h-4 text-gray-500" />
                       </button>
-                      <button className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50" title="Download Report">
-                        <Download size={20} className="text-gray-600" />
+                      <button className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors" title="Download">
+                        <Download className="w-4 h-4 text-gray-500" />
                       </button>
                     </div>
                   </div>
+
+                  {/* AI Summary */}
+                  {report.aiSummary && (
+                    <div className="bg-purple-50/50 border border-purple-100 rounded-lg p-3 mb-3">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <Sparkles className="w-3 h-3 text-purple-500" />
+                        <span className="text-[11px] font-semibold text-purple-600 uppercase tracking-wider">
+                          AI Summary
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-600 leading-relaxed">
+                        {report.aiSummary}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Critical Flags */}
+                  {report.criticalFlags.length > 0 && (
+                    <div className="space-y-1.5">
+                      {report.criticalFlags.map((flag, i) => (
+                        <div
+                          key={i}
+                          className="flex items-center gap-2 text-xs"
+                        >
+                          <AlertCircle className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />
+                          <span className="font-medium text-gray-700">
+                            {flag.issue}
+                          </span>
+                          <StatusBadge status={flag.severity} size="sm" />
+                          <span className="text-gray-500">
+                            {flag.details}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              );
-            })}
-          </div>
+              </div>
+            </div>
+          ))}
+
+          {filteredReports.length === 0 && (
+            <div className="bg-white rounded-xl border border-gray-200 py-16 text-center">
+              <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+              <p className="text-gray-500 font-medium">No reports found</p>
+              <p className="text-sm text-gray-400 mt-1">Try adjusting your filters or search</p>
+            </div>
+          )}
         </div>
 
-        {/* Analytics Section */}
-        <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white rounded-lg shadow p-6">
+        {/* Analytics */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-white rounded-xl border border-gray-200 p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">Report Generation Trends</h3>
-              <TrendingUp className="text-green-600" size={20} />
+              <h3 className="font-semibold text-gray-900">Report Trends</h3>
+              <TrendingUp className="w-4 h-4 text-emerald-500" />
             </div>
             <div className="space-y-3">
-              <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                <span className="text-sm font-medium">This Week</span>
-                <span className="text-xl font-bold text-blue-600">12</span>
-              </div>
-              <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                <span className="text-sm font-medium">Last Week</span>
-                <span className="text-xl font-bold text-gray-600">8</span>
-              </div>
-              <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                <span className="text-sm font-medium">This Month</span>
-                <span className="text-xl font-bold text-green-600">45</span>
-              </div>
+              {[
+                { label: "This Week", value: 6, color: "bg-blue-600" },
+                { label: "Last Week", value: 4, color: "bg-gray-400" },
+                { label: "This Month", value: 18, color: "bg-emerald-500" },
+              ].map((item) => (
+                <div key={item.label} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <span className="text-sm text-gray-600">{item.label}</span>
+                  <span className="text-lg font-bold text-gray-900">{item.value}</span>
+                </div>
+              ))}
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold mb-4">Most Generated Report Types</h3>
+          <div className="bg-white rounded-xl border border-gray-200 p-6">
+            <h3 className="font-semibold text-gray-900 mb-4">File Types</h3>
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Prescriptions</span>
-                <div className="flex items-center gap-2">
-                  <div className="w-32 bg-gray-200 rounded-full h-2">
-                    <div className="bg-blue-600 h-2 rounded-full" style={{ width: '80%' }}></div>
+              {[
+                { label: "PDF Reports", count: reports.filter((r) => r.fileType === "pdf").length, total: reports.length, color: "bg-red-500" },
+                { label: "Images", count: reports.filter((r) => r.fileType === "image").length, total: reports.length, color: "bg-indigo-500" },
+              ].map((item) => (
+                <div key={item.label} className="flex items-center gap-3">
+                  <span className="text-sm text-gray-600 w-28">{item.label}</span>
+                  <div className="flex-1 bg-gray-200 rounded-full h-2">
+                    <div
+                      className={`${item.color} h-2 rounded-full`}
+                      style={{ width: `${(item.count / item.total) * 100}%` }}
+                    />
                   </div>
-                  <span className="text-sm font-medium">40%</span>
+                  <span className="text-sm font-medium text-gray-900 w-8 text-right">
+                    {item.count}
+                  </span>
                 </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Lab Reports</span>
-                <div className="flex items-center gap-2">
-                  <div className="w-32 bg-gray-200 rounded-full h-2">
-                    <div className="bg-green-600 h-2 rounded-full" style={{ width: '60%' }}></div>
-                  </div>
-                  <span className="text-sm font-medium">30%</span>
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Consultation Summaries</span>
-                <div className="flex items-center gap-2">
-                  <div className="w-32 bg-gray-200 rounded-full h-2">
-                    <div className="bg-purple-600 h-2 rounded-full" style={{ width: '40%' }}></div>
-                  </div>
-                  <span className="text-sm font-medium">20%</span>
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Medical Certificates</span>
-                <div className="flex items-center gap-2">
-                  <div className="w-32 bg-gray-200 rounded-full h-2">
-                    <div className="bg-yellow-600 h-2 rounded-full" style={{ width: '20%' }}></div>
-                  </div>
-                  <span className="text-sm font-medium">10%</span>
-                </div>
-              </div>
+              ))}
             </div>
           </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 }
