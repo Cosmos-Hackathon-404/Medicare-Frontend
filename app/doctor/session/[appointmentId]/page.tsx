@@ -47,7 +47,6 @@ export default function SessionPage({
   // Mutations & Actions
   const generateUploadUrl = useMutation(api.mutations.sessions.generateUploadUrl);
   const createSession = useMutation(api.mutations.sessions.create);
-  const updateAppointmentStatus = useMutation(api.mutations.appointments.updateStatus);
   const summarizeSession = useAction(api.actions.summarizeSession.summarizeSession);
 
   const isLoading = appointment === undefined;
@@ -76,18 +75,13 @@ export default function SessionPage({
         audioStorageId: storageId,
       });
 
-      // Step 3: Run AI summarization
+      // Step 3: Run AI summarization (pass sessionId to avoid duplicate)
       await summarizeSession({
+        sessionId,
         appointmentId: appointmentId as Id<"appointments">,
         audioStorageId: storageId,
         patientClerkId: appointment.patientClerkId,
         doctorClerkId,
-      });
-
-      // Step 4: Mark appointment as completed
-      await updateAppointmentStatus({
-        appointmentId: appointmentId as Id<"appointments">,
-        status: "completed",
       });
 
       toast.success("Session processed successfully!");

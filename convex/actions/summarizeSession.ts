@@ -20,6 +20,7 @@ import {
  */
 export const summarizeSession = action({
   args: {
+    sessionId: v.optional(v.id("sessions")),
     appointmentId: v.id("appointments"),
     audioStorageId: v.id("_storage"),
     patientClerkId: v.string(),
@@ -121,8 +122,8 @@ export const summarizeSession = action({
       };
     }
 
-    // Step 5: Create session in Convex
-    const sessionId = await ctx.runMutation(
+    // Step 5: Use existing session or create a new one
+    const sessionId = args.sessionId ?? await ctx.runMutation(
       api.mutations.sessions.create,
       {
         appointmentId: args.appointmentId,
