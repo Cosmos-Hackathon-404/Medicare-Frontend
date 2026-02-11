@@ -14,11 +14,13 @@ import type * as actions_generateSharedContext from "../actions/generateSharedCo
 import type * as actions_summarizeSession from "../actions/summarizeSession.js";
 import type * as mutations_appointments from "../mutations/appointments.js";
 import type * as mutations_doctors from "../mutations/doctors.js";
+import type * as mutations_messages from "../mutations/messages.js";
 import type * as mutations_reports from "../mutations/reports.js";
 import type * as mutations_sessions from "../mutations/sessions.js";
 import type * as mutations_sharedContexts from "../mutations/sharedContexts.js";
 import type * as queries_appointments from "../queries/appointments.js";
 import type * as queries_doctors from "../queries/doctors.js";
+import type * as queries_messages from "../queries/messages.js";
 import type * as queries_patients from "../queries/patients.js";
 import type * as queries_reports from "../queries/reports.js";
 import type * as queries_sessions from "../queries/sessions.js";
@@ -38,11 +40,13 @@ declare const fullApi: ApiFromModules<{
   "actions/summarizeSession": typeof actions_summarizeSession;
   "mutations/appointments": typeof mutations_appointments;
   "mutations/doctors": typeof mutations_doctors;
+  "mutations/messages": typeof mutations_messages;
   "mutations/reports": typeof mutations_reports;
   "mutations/sessions": typeof mutations_sessions;
   "mutations/sharedContexts": typeof mutations_sharedContexts;
   "queries/appointments": typeof queries_appointments;
   "queries/doctors": typeof queries_doctors;
+  "queries/messages": typeof queries_messages;
   "queries/patients": typeof queries_patients;
   "queries/reports": typeof queries_reports;
   "queries/sessions": typeof queries_sessions;

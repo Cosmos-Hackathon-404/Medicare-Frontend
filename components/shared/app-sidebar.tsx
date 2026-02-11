@@ -28,6 +28,7 @@ import {
   Share2,
   History,
   Inbox,
+  MessageSquare,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { Separator } from "@/components/ui/separator";
@@ -42,6 +43,7 @@ const doctorNav: NavItem[] = [
   { label: "Dashboard", href: "/doctor/dashboard", icon: LayoutDashboard },
   { label: "Availability", href: "/doctor/availability", icon: Clock },
   { label: "Appointments", href: "/doctor/appointments", icon: Calendar },
+  { label: "Messages", href: "/doctor/chat", icon: MessageSquare },
   { label: "Reports", href: "/doctor/reports", icon: FileText },
   { label: "Shared Context", href: "/doctor/shared-context", icon: Inbox },
 ];
@@ -50,6 +52,7 @@ const patientNav: NavItem[] = [
   { label: "Dashboard", href: "/patient/dashboard", icon: LayoutDashboard },
   { label: "Appointments", href: "/patient/appointments", icon: Calendar },
   { label: "Find Doctor", href: "/patient/book", icon: Search },
+  { label: "Messages", href: "/patient/chat", icon: MessageSquare },
   { label: "My Reports", href: "/patient/reports", icon: FileText },
   { label: "Sessions", href: "/patient/sessions", icon: History },
   { label: "Share Context", href: "/patient/share", icon: Share2 },
