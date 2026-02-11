@@ -74,7 +74,7 @@ export function Benefits() {
                   <ul className="space-y-2">
                     {benefit.items.map((item, i) => (
                       <li key={i} className="text-sm text-muted-foreground flex gap-2">
-                        <span className="text-accent">→</span>
+                        <span className="text-primary">→</span>
                         {item}
                       </li>
                     ))}
@@ -90,41 +90,41 @@ export function Benefits() {
             <h3 className="text-xl font-semibold text-foreground mb-4">For Healthcare Systems</h3>
             <ul className="space-y-3">
               <li className="flex gap-3">
-                <span className="text-accent text-xl leading-none">•</span>
+                <span className="text-primary text-xl leading-none">•</span>
                 <span className="text-muted-foreground">Seamless EHR integration with major providers</span>
               </li>
               <li className="flex gap-3">
-                <span className="text-accent text-xl leading-none">•</span>
+                <span className="text-primary text-xl leading-none">•</span>
                 <span className="text-muted-foreground">Bulk user management and compliance tools</span>
               </li>
               <li className="flex gap-3">
-                <span className="text-accent text-xl leading-none">•</span>
+                <span className="text-primary text-xl leading-none">•</span>
                 <span className="text-muted-foreground">Advanced analytics and reporting dashboards</span>
               </li>
               <li className="flex gap-3">
-                <span className="text-accent text-xl leading-none">•</span>
+                <span className="text-primary text-xl leading-none">•</span>
                 <span className="text-muted-foreground">Dedicated implementation and support team</span>
               </li>
             </ul>
           </Card>
 
-          <Card className="p-8 border border-border bg-accent/5">
+          <Card className="p-8 border border-border bg-primary/5">
             <h3 className="text-xl font-semibold text-foreground mb-4">Security & Compliance</h3>
             <ul className="space-y-3">
               <li className="flex gap-3">
-                <span className="text-accent text-xl leading-none">•</span>
+                <span className="text-primary text-xl leading-none">•</span>
                 <span className="text-muted-foreground">HIPAA compliant with BAA agreements</span>
               </li>
               <li className="flex gap-3">
-                <span className="text-accent text-xl leading-none">•</span>
+                <span className="text-primary text-xl leading-none">•</span>
                 <span className="text-muted-foreground">SOC 2 Type II certified infrastructure</span>
               </li>
               <li className="flex gap-3">
-                <span className="text-accent text-xl leading-none">•</span>
+                <span className="text-primary text-xl leading-none">•</span>
                 <span className="text-muted-foreground">End-to-end encryption for all data</span>
               </li>
               <li className="flex gap-3">
-                <span className="text-accent text-xl leading-none">•</span>
+                <span className="text-primary text-xl leading-none">•</span>
                 <span className="text-muted-foreground">Regular security audits and penetration testing</span>
               </li>
             </ul>

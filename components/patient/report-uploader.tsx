@@ -1,0 +1,212 @@
+"use client";
+
+import { useState, useRef } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { Upload, FileText, Image, X, Loader2, CheckCircle2 } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+interface ReportUploaderProps {
+  onUpload: (file: File, fileType: "pdf" | "image") => Promise<void>;
+  isUploading?: boolean;
+  className?: string;
+}
+
+export function ReportUploader({
+  onUpload,
+  isUploading,
+  className,
+}: ReportUploaderProps) {
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [dragActive, setDragActive] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const acceptedTypes = [
+    "application/pdf",
+    "image/png",
+    "image/jpeg",
+    "image/jpg",
+    "image/webp",
+  ];
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    const file = e.dataTransfer.files?.[0];
+    if (file && acceptedTypes.includes(file.type)) {
+      setSelectedFile(file);
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && acceptedTypes.includes(file.type)) {
+      setSelectedFile(file);
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!selectedFile) return;
+
+    const fileType = selectedFile.type === "application/pdf" ? "pdf" : "image";
+
+    // Simulate progress for UX
+    const progressInterval = setInterval(() => {
+      setUploadProgress((prev) => Math.min(prev + 10, 90));
+    }, 200);
+
+    try {
+      await onUpload(selectedFile, fileType);
+      setUploadProgress(100);
+      setTimeout(() => {
+        setSelectedFile(null);
+        setUploadProgress(0);
+      }, 1000);
+    } finally {
+      clearInterval(progressInterval);
+    }
+  };
+
+  const getFileIcon = () => {
+    if (!selectedFile) return <Upload className="h-10 w-10" />;
+    return selectedFile.type === "application/pdf" ? (
+      <FileText className="h-10 w-10 text-orange-500" />
+    ) : (
+      <Image className="h-10 w-10 text-blue-500" aria-label="Upload image" />
+    );
+  };
+
+  return (
+    <Card className={cn("overflow-hidden", className)}>
+      <CardHeader className="bg-gradient-to-r from-primary/10 to-primary/5 pb-4">
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <Upload className="h-5 w-5 text-primary" />
+          Upload Medical Report
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="p-6">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".pdf,.png,.jpg,.jpeg,.webp"
+          onChange={handleFileSelect}
+          className="hidden"
+        />
+
+        {!selectedFile ? (
+          <div
+            className={cn(
+              "flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-8 transition-colors",
+              dragActive
+                ? "border-primary bg-primary/5"
+                : "border-muted-foreground/25 hover:border-primary/50"
+            )}
+            onDragEnter={handleDrag}
+            onDragLeave={handleDrag}
+            onDragOver={handleDrag}
+            onDrop={handleDrop}
+          >
+            <Upload className="mb-4 h-12 w-12 text-muted-foreground" />
+            <p className="mb-2 text-center font-medium">
+              Drag & drop your report here
+            </p>
+            <p className="mb-4 text-center text-sm text-muted-foreground">
+              or click to browse files
+            </p>
+            <Button
+              variant="outline"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              Select File
+            </Button>
+            <p className="mt-4 text-xs text-muted-foreground">
+              Supported: PDF, PNG, JPG, WEBP
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {/* Selected File */}
+            <div className="flex items-center gap-4 rounded-lg border bg-muted/30 p-4">
+              {getFileIcon()}
+              <div className="flex-1 min-w-0">
+                <p className="font-medium truncate">{selectedFile.name}</p>
+                <p className="text-sm text-muted-foreground">
+                  {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                </p>
+              </div>
+              {!isUploading && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setSelectedFile(null)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+
+            {/* Upload Progress */}
+            {isUploading && (
+              <div className="space-y-2">
+                <Progress value={uploadProgress} className="h-2" />
+                <p className="text-center text-sm text-muted-foreground">
+                  {uploadProgress < 100
+                    ? "Uploading and analyzing..."
+                    : "Complete!"}
+                </p>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setSelectedFile(null)}
+                disabled={isUploading}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1 gap-2"
+                onClick={handleUpload}
+                disabled={isUploading}
+              >
+                {isUploading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Processing...
+                  </>
+                ) : uploadProgress === 100 ? (
+                  <>
+                    <CheckCircle2 className="h-4 w-4" />
+                    Done
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-4 w-4" />
+                    Upload & Analyze
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}

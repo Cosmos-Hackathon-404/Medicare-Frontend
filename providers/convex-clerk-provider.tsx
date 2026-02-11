@@ -3,6 +3,8 @@
 import { ClerkProvider, useAuth } from "@clerk/nextjs";
 import { ConvexProviderWithClerk } from "convex/react-clerk";
 import { ConvexReactClient } from "convex/react";
+import { ThemeProvider } from "next-themes";
+import { Toaster } from "sonner";
 import { ReactNode } from "react";
 
 const convex = new ConvexReactClient(
@@ -13,7 +15,15 @@ export default function Providers({ children }: { children: ReactNode }) {
   return (
     <ClerkProvider>
       <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
-        {children}
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="light"
+          enableSystem
+          disableTransitionOnChange
+        >
+          {children}
+          <Toaster richColors position="top-right" />
+        </ThemeProvider>
       </ConvexProviderWithClerk>
     </ClerkProvider>
   );

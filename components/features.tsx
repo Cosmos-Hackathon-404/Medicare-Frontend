@@ -55,8 +55,8 @@ export function Features() {
                 key={index}
                 className="p-6 border border-border hover:border-primary/50 hover:shadow-lg transition-all duration-300 group"
               >
-                <div className="mb-4 w-12 h-12 rounded-lg bg-accent/10 flex items-center justify-center group-hover:bg-accent/20 transition">
-                  <Icon className="w-6 h-6 text-accent" />
+                <div className="mb-4 w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition">
+                  <Icon className="w-6 h-6 text-primary" />
                 </div>
                 <h3 className="text-lg font-semibold text-foreground mb-2">
                   {feature.title}
