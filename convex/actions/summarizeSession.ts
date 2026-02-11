@@ -157,7 +157,8 @@ Diagnosis: ${parsed.diagnosis}
 Prescriptions: ${parsed.prescriptions}
 Key Decisions: ${(parsed.key_decisions ?? []).join(", ")}
 Follow-up: ${(parsed.follow_up_actions ?? []).join(", ")}`,
-        containerTag: args.patientClerkId,
+        containerTags: [args.patientClerkId],
+        customId: `session_${sessionId}`,
       });
       supermemoryDocId = memResult?.id;
     } catch {

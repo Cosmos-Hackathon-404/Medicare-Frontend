@@ -3,20 +3,33 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { UserButton, useUser } from "@clerk/nextjs";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarRail,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
 import {
   LayoutDashboard,
   Calendar,
   FileText,
-  Inbox,
   Search,
   Share2,
   History,
-  Menu,
+  Inbox,
 } from "lucide-react";
-import { useState } from "react";
+import { ThemeToggle } from "@/components/shared/theme-toggle";
+import { Separator } from "@/components/ui/separator";
 
 interface NavItem {
   label: string;
@@ -40,74 +53,6 @@ const patientNav: NavItem[] = [
   { label: "Share Context", href: "/patient/share", icon: Share2 },
 ];
 
-function SidebarContent({
-  role,
-  navItems,
-  pathname,
-  onLinkClick,
-}: {
-  role: "doctor" | "patient";
-  navItems: NavItem[];
-  pathname: string;
-  onLinkClick?: () => void;
-}) {
-  const { user } = useUser();
-
-  return (
-    <div className="flex h-full flex-col">
-      {/* Logo */}
-      <div className="flex h-16 items-center gap-2 border-b border-border px-5">
-        <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-          <span className="text-primary-foreground font-bold text-sm">M</span>
-        </div>
-        <div>
-          <p className="font-semibold text-foreground text-sm">Medicare AI</p>
-          <p className="text-[10px] text-muted-foreground capitalize">{role} Portal</p>
-        </div>
-      </div>
-
-      {/* Navigation */}
-      <nav className="flex-1 space-y-1 p-3">
-        {navItems.map((item) => {
-          const isActive =
-            pathname === item.href || pathname.startsWith(item.href + "/");
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={onLinkClick}
-              className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all",
-                isActive
-                  ? "bg-primary/10 text-primary font-medium"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              )}
-            >
-              <item.icon className={cn("h-4 w-4", isActive && "text-primary")} />
-              {item.label}
-            </Link>
-          );
-        })}
-      </nav>
-
-      {/* User Section */}
-      <div className="border-t border-border p-4">
-        <div className="flex items-center gap-3">
-          <UserButton afterSignOutUrl="/" />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-foreground truncate">
-              {user?.fullName || user?.firstName || "User"}
-            </p>
-            <p className="text-xs text-muted-foreground truncate">
-              {user?.primaryEmailAddress?.emailAddress}
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export function AppSidebar({
   role,
   children,
@@ -117,47 +62,103 @@ export function AppSidebar({
 }) {
   const pathname = usePathname();
   const navItems = role === "doctor" ? doctorNav : patientNav;
-  const [open, setOpen] = useState(false);
+  const { user } = useUser();
 
   return (
-    <div className="flex min-h-screen">
-      {/* Desktop Sidebar */}
-      <aside className="hidden md:flex w-64 flex-col border-r border-border bg-card/50">
-        <SidebarContent role={role} navItems={navItems} pathname={pathname} />
-      </aside>
+    <SidebarProvider>
+      <Sidebar collapsible="icon">
+        {/* Header */}
+        <SidebarHeader>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton size="lg" asChild tooltip="Medicare AI">
+                <Link href={`/${role}/dashboard`}>
+                  <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                    <span className="font-bold text-sm">M</span>
+                  </div>
+                  <div className="grid flex-1 text-left text-sm leading-tight">
+                    <span className="truncate font-semibold">Medicare AI</span>
+                    <span className="truncate text-xs text-muted-foreground capitalize">
+                      {role} Portal
+                    </span>
+                  </div>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarHeader>
 
-      {/* Mobile Header + Sheet */}
-      <div className="flex flex-1 flex-col">
-        <header className="md:hidden flex h-14 items-center gap-4 border-b border-border bg-card/50 px-4">
-          <Sheet open={open} onOpenChange={setOpen}>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="shrink-0">
-                <Menu className="h-5 w-5" />
-                <span className="sr-only">Toggle navigation</span>
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-64 p-0">
-              <SidebarContent
-                role={role}
-                navItems={navItems}
-                pathname={pathname}
-                onLinkClick={() => setOpen(false)}
-              />
-            </SheetContent>
-          </Sheet>
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-primary rounded flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-xs">M</span>
-            </div>
-            <span className="font-semibold text-sm">Medicare AI</span>
-          </div>
+        {/* Navigation */}
+        <SidebarContent>
+          <SidebarGroup>
+            <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {navItems.map((item) => {
+                  const isActive =
+                    pathname === item.href ||
+                    pathname.startsWith(item.href + "/");
+                  return (
+                    <SidebarMenuItem key={item.href}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={isActive}
+                        tooltip={item.label}
+                      >
+                        <Link href={item.href}>
+                          <item.icon />
+                          <span>{item.label}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
+
+        <SidebarRail />
+
+        {/* Footer */}
+        <SidebarFooter>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                size="lg"
+                className="cursor-default hover:bg-transparent active:bg-transparent"
+              >
+                <UserButton afterSignOutUrl="/" />
+                <div className="grid flex-1 text-left text-sm leading-tight">
+                  <span className="truncate font-medium">
+                    {user?.fullName || user?.firstName || "User"}
+                  </span>
+                  <span className="truncate text-xs text-muted-foreground">
+                    {user?.primaryEmailAddress?.emailAddress}
+                  </span>
+                </div>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <ThemeToggle />
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarFooter>
+      </Sidebar>
+
+      {/* Main content */}
+      <SidebarInset className="h-svh max-h-svh">
+        <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
+          <SidebarTrigger className="-ml-1" />
+          <Separator orientation="vertical" className="mr-2 h-4" />
+          <span className="text-sm font-medium text-muted-foreground capitalize">
+            {role} Portal
+          </span>
         </header>
-
-        {/* Page Content */}
-        <main className="flex-1 overflow-auto p-4 md:p-6 lg:p-8">
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
           {children}
-        </main>
-      </div>
-    </div>
+        </div>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }

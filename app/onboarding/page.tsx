@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -14,6 +14,14 @@ export default function OnboardingPage() {
   const router = useRouter();
   const [role, setRole] = useState<Role | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // If user already has a role, redirect
+  const existingRole = user?.publicMetadata?.role as Role | undefined;
+  useEffect(() => {
+    if (existingRole) {
+      router.push(`/${existingRole}/dashboard`);
+    }
+  }, [existingRole, router]);
 
   // Doctor form state
   const [doctorForm, setDoctorForm] = useState({
@@ -35,19 +43,12 @@ export default function OnboardingPage() {
   const createDoctorProfile = useMutation(api.users.createDoctorProfile);
   const createPatientProfile = useMutation(api.users.createPatientProfile);
 
-  if (!isLoaded || !user) {
+  if (!isLoaded || !user || existingRole) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <p className="text-muted-foreground">Loading...</p>
       </div>
     );
-  }
-
-  // If user already has a role, redirect
-  const existingRole = user.publicMetadata?.role as Role | undefined;
-  if (existingRole) {
-    router.push(`/${existingRole}/dashboard`);
-    return null;
   }
 
   async function handleSubmit(e: React.FormEvent) {

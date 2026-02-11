@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Menu, X } from 'lucide-react'
 import Link from 'next/link'
 import { SignedIn, SignedOut, UserButton } from '@clerk/nextjs'
+import { ThemeToggle } from '@/components/shared/theme-toggle'
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
@@ -35,6 +36,7 @@ export function Navbar() {
 
           {/* Desktop Buttons */}
           <div className="hidden md:flex items-center gap-3">
+            <ThemeToggle />
             <SignedOut>
               <Button variant="outline" size="sm" asChild>
                 <Link href="/sign-in">Sign In</Link>
@@ -52,13 +54,15 @@ export function Navbar() {
           </div>
 
           {/* Mobile Menu Button */}
-          <button
-            className="md:hidden"
-            onClick={() => setIsOpen(!isOpen)}
-            aria-label="Toggle menu"
-          >
-            {isOpen ? <X size={24} /> : <Menu size={24} />}
-          </button>
+          <div className="md:hidden flex items-center gap-1">
+            <ThemeToggle />
+            <button
+              onClick={() => setIsOpen(!isOpen)}
+              aria-label="Toggle menu"
+            >
+              {isOpen ? <X size={24} /> : <Menu size={24} />}
+            </button>
+          </div>
         </div>
 
         {/* Mobile Menu */}

@@ -110,7 +110,7 @@ export const analyzeReport = action({
       criticalFlags,
     });
 
-    // Step 5: Store in Supermemory
+    // Step 5: Store analysis in Supermemory
     let supermemoryDocId: string | undefined;
     try {
       const memResult = await supermemory.add({
@@ -119,11 +119,31 @@ Summary: ${parsed.plain_language_summary}
 Critical Flags: ${criticalFlags.map((f: { issue: string; severity: string; details: string }) => `${f.issue} (${f.severity}): ${f.details}`).join("; ")}
 Recommendations: ${(parsed.recommendations ?? []).join(", ")}
 Pre-diagnosis Insights: ${parsed.pre_diagnosis_insights}`,
-        containerTag: args.patientClerkId,
+        containerTags: [args.patientClerkId],
+        customId: `report_${args.reportId}`,
       });
       supermemoryDocId = memResult?.id;
     } catch {
       // Non-critical failure
+    }
+
+    // Step 5b: Upload original file to Supermemory for OCR extraction
+    try {
+      const fileBlob = new Blob([fileBuffer], { type: mimeType });
+      const formData = new FormData();
+      formData.append("file", fileBlob, `report_${args.reportId}.${args.fileType === "pdf" ? "pdf" : "png"}`);
+      formData.append("containerTags", args.patientClerkId);
+      formData.append("customId", `report_file_${args.reportId}`);
+
+      await fetch("https://api.supermemory.ai/v3/documents/file", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${process.env.SUPERMEMORY_API_KEY!}`,
+        },
+        body: formData,
+      });
+    } catch {
+      // File upload to Supermemory failed — non-critical
     }
 
     if (supermemoryDocId) {
