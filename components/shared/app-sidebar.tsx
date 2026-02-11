@@ -22,6 +22,7 @@ import {
 import {
   LayoutDashboard,
   Calendar,
+  Clock,
   FileText,
   Search,
   Share2,
