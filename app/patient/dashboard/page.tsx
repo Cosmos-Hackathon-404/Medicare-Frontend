@@ -1,11 +1,23 @@
-export default function PatientDashboardPage() {
+import { Navbar } from '@/components/navbar'
+import { Hero } from '@/components/hero'
+import { Features } from '@/components/features'
+import { DoctorPatientSection } from '@/components/doctor-patient-section'
+import { Benefits } from '@/components/benefits'
+import { Team } from '@/components/team'
+import { CTA } from '@/components/cta'
+import { Footer } from '@/components/footer'
+
+export default function Home() {
   return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Patient Dashboard</h1>
-      <p className="text-muted-foreground">
-        Your upcoming appointments, recent AI summaries, and health timeline.
-      </p>
-      {/* Dashboard cards + activity will be added here */}
-    </div>
-  );
+    <main className="min-h-screen bg-background">
+      <Navbar />
+      <Hero />
+      <Features />
+      <DoctorPatientSection />
+      <Benefits />
+      <Team />
+      <CTA />
+      <Footer />
+    </main>
+  )
 }
