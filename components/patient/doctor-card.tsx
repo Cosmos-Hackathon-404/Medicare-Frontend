@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Calendar, User } from "lucide-react";
+import { Calendar, User, MessageSquare } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import type { DoctorProfile } from "@/types";
@@ -67,13 +67,20 @@ export function DoctorCard({ doctor, className }: DoctorCardProps) {
             </span>
           </div>
 
-          {/* Book Button */}
-          <Link href={`/patient/book/${doctor._id}`} className="block">
-            <Button className="w-full gap-2">
-              <Calendar className="h-4 w-4" />
-              Book Appointment
-            </Button>
-          </Link>
+          {/* Buttons */}
+          <div className="flex gap-2">
+            <Link href={`/patient/book/${doctor._id}`} className="flex-1">
+              <Button className="w-full gap-2">
+                <Calendar className="h-4 w-4" />
+                Book Appointment
+              </Button>
+            </Link>
+            <Link href={`/patient/chat?doctor=${doctor.clerkUserId}&name=${encodeURIComponent(doctor.name)}`}>
+              <Button variant="outline" size="icon" title="Message Doctor">
+                <MessageSquare className="h-4 w-4" />
+              </Button>
+            </Link>
+          </div>
         </div>
       </CardContent>
     </Card>

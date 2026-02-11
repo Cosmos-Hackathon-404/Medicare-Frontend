@@ -33,6 +33,7 @@ import {
   Clock,
   CheckCircle2,
   XCircle,
+  MessageSquare,
 } from "lucide-react";
 import Link from "next/link";
 import { format, parseISO, isAfter, isBefore, startOfDay } from "date-fns";
@@ -307,6 +308,12 @@ function AppointmentRow({ appointment }: { appointment: Appointment }) {
       </TableCell>
       <TableCell className="text-right">
         <div className="flex justify-end gap-2">
+          <Link href={`/doctor/chat?patient=${appointment.patientClerkId}`}>
+            <Button size="sm" variant="outline" className="gap-1">
+              <MessageSquare className="h-3 w-3" />
+              Message
+            </Button>
+          </Link>
           {isScheduled ? (
             <Link href={`/doctor/session/${appointment._id}`}>
               <Button size="sm" className="gap-1">

@@ -1,7 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
+import { useQuery } from "convex/react";
+import { useSearchParams } from "next/navigation";
+import { api } from "@/convex/_generated/api";
 import { ChatWindow, ConversationList } from "@/components/shared/chat";
 import { Card } from "@/components/ui/card";
 import { MessageSquare } from "lucide-react";
@@ -9,11 +12,29 @@ import { MessageSquare } from "lucide-react";
 export default function PatientChatPage() {
   const { user } = useUser();
   const patientClerkId = user?.id ?? "";
+  const searchParams = useSearchParams();
 
   const [selectedPartner, setSelectedPartner] = useState<{
     clerkId: string;
     name: string;
   } | null>(null);
+
+  // Look up doctor name from query param
+  const doctorClerkIdParam = searchParams.get("doctor");
+  const doctorNameParam = searchParams.get("name");
+
+  // Resolve doctor name if not provided in params
+  const doctors = useQuery(api.queries.doctors.getAll);
+
+  useEffect(() => {
+    if (doctorClerkIdParam && !selectedPartner) {
+      const name =
+        doctorNameParam ??
+        doctors?.find((d) => d.clerkUserId === doctorClerkIdParam)?.name ??
+        "Doctor";
+      setSelectedPartner({ clerkId: doctorClerkIdParam, name });
+    }
+  }, [doctorClerkIdParam, doctorNameParam, doctors, selectedPartner]);
 
   return (
     <div className="space-y-6">
