@@ -39,6 +39,7 @@ interface NavItem {
 
 const doctorNav: NavItem[] = [
   { label: "Dashboard", href: "/doctor/dashboard", icon: LayoutDashboard },
+  { label: "Availability", href: "/doctor/availability", icon: Clock },
   { label: "Appointments", href: "/doctor/appointments", icon: Calendar },
   { label: "Reports", href: "/doctor/reports", icon: FileText },
   { label: "Shared Context", href: "/doctor/shared-context", icon: Inbox },
