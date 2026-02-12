@@ -65,6 +65,7 @@ export function VideoSession({
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
+  const remoteStreamRef = useRef<MediaStream | null>(null);
   const screenStreamRef = useRef<MediaStream | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const durationIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -226,6 +227,21 @@ export function VideoSession({
           { urls: "stun:stun1.l.google.com:19302" },
           { urls: "stun:stun2.l.google.com:19302" },
           { urls: "stun:stun3.l.google.com:19302" },
+          {
+            urls: "turn:openrelay.metered.ca:80",
+            username: "openrelayproject",
+            credential: "openrelayproject",
+          },
+          {
+            urls: "turn:openrelay.metered.ca:443",
+            username: "openrelayproject",
+            credential: "openrelayproject",
+          },
+          {
+            urls: "turn:openrelay.metered.ca:443?transport=tcp",
+            username: "openrelayproject",
+            credential: "openrelayproject",
+          },
         ],
       });
 
@@ -234,8 +250,12 @@ export function VideoSession({
       });
 
       pc.ontrack = (event) => {
-        if (remoteVideoRef.current && event.streams[0]) {
-          remoteVideoRef.current.srcObject = event.streams[0];
+        if (event.streams[0]) {
+          remoteStreamRef.current = event.streams[0];
+          // Attach to video element if already rendered
+          if (remoteVideoRef.current) {
+            remoteVideoRef.current.srcObject = event.streams[0];
+          }
           setIsConnected(true);
           setIsConnecting(false);
         }
@@ -415,6 +435,22 @@ export function VideoSession({
       }
     };
   }, []);
+
+  // Attach remote stream to video element once it mounts (after isConnected flips to true)
+  useEffect(() => {
+    if (isConnected && remoteVideoRef.current && remoteStreamRef.current) {
+      if (remoteVideoRef.current.srcObject !== remoteStreamRef.current) {
+        remoteVideoRef.current.srcObject = remoteStreamRef.current;
+      }
+    }
+    // Re-attach local stream to the new video element after view switch
+    if (isConnected && localVideoRef.current && localStreamRef.current) {
+      const currentSrc = isScreenSharing ? screenStreamRef.current : localStreamRef.current;
+      if (currentSrc && localVideoRef.current.srcObject !== currentSrc) {
+        localVideoRef.current.srcObject = currentSrc;
+      }
+    }
+  }, [isConnected, isScreenSharing]);
 
   // Duration timer
   useEffect(() => {
