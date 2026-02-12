@@ -11,6 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { SlotPicker } from "@/components/patient/slot-picker";
 import {
   ArrowLeft,
@@ -19,6 +21,9 @@ import {
   Loader2,
   Calendar,
   Stethoscope,
+  FileText,
+  Image as ImageIcon,
+  Share2,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -37,20 +42,33 @@ export default function BookDoctorPage({
   const [selectedDateTime, setSelectedDateTime] = useState<Date | undefined>();
   const [notes, setNotes] = useState("");
   const [isBooking, setIsBooking] = useState(false);
+  const [selectedReportIds, setSelectedReportIds] = useState<Id<"reports">[]>([]);
 
   // Queries
   const doctor = useQuery(api.queries.doctors.getById, {
     doctorId: doctorId as Id<"doctorProfiles">,
   });
   const patientProfile = useQuery(
-    api.users.getPatientProfile,
+    api.queries.patients.getByClerkId,
     user?.id ? { clerkUserId: user.id } : "skip"
+  );
+  const patientReports = useQuery(
+    api.queries.reports.getByPatient,
+    user?.id ? { patientClerkId: user.id } : "skip"
   );
 
   // Mutation
   const createAppointment = useMutation(api.mutations.appointments.create);
 
   const isLoading = doctor === undefined;
+
+  const toggleReportSelection = (reportId: Id<"reports">) => {
+    setSelectedReportIds((prev) =>
+      prev.includes(reportId)
+        ? prev.filter((id) => id !== reportId)
+        : [...prev, reportId]
+    );
+  };
 
   const handleBook = async () => {
     if (!selectedDateTime || !doctor || !patientProfile || !user) {
@@ -67,6 +85,7 @@ export default function BookDoctorPage({
         doctorClerkId: doctor.clerkUserId,
         dateTime: selectedDateTime.toISOString(),
         notes: notes || undefined,
+        sharedReportIds: selectedReportIds.length > 0 ? selectedReportIds : undefined,
       });
 
       toast.success("Appointment booked successfully!");
@@ -177,6 +196,87 @@ export default function BookDoctorPage({
               />
             </CardContent>
           </Card>
+
+          {/* Share Reports */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Share2 className="h-5 w-5" />
+                Share Reports
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Select reports to share with the doctor for this appointment
+              </p>
+            </CardHeader>
+            <CardContent>
+              {patientReports === undefined ? (
+                <div className="space-y-2">
+                  <Skeleton className="h-12 w-full" />
+                  <Skeleton className="h-12 w-full" />
+                </div>
+              ) : patientReports.length === 0 ? (
+                <div className="flex flex-col items-center py-4 text-center">
+                  <FileText className="mb-2 h-8 w-8 text-muted-foreground opacity-40" />
+                  <p className="text-sm text-muted-foreground">
+                    No reports uploaded yet
+                  </p>
+                  <Link href="/patient/reports" className="mt-2">
+                    <Button variant="outline" size="sm">
+                      Upload Reports
+                    </Button>
+                  </Link>
+                </div>
+              ) : (
+                <ScrollArea className="max-h-[250px]">
+                  <div className="space-y-2">
+                    {patientReports.map((report) => (
+                      <div
+                        key={report._id}
+                        className={`flex items-center gap-3 rounded-lg border p-3 transition-colors cursor-pointer hover:bg-muted/50 ${
+                          selectedReportIds.includes(report._id)
+                            ? "border-primary bg-primary/5"
+                            : ""
+                        }`}
+                        onClick={() => toggleReportSelection(report._id)}
+                      >
+                        <Checkbox
+                          checked={selectedReportIds.includes(report._id)}
+                          onCheckedChange={() => toggleReportSelection(report._id)}
+                          className="pointer-events-none"
+                        />
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted">
+                          {report.fileType === "pdf" ? (
+                            <FileText className="h-4 w-4 text-red-500" />
+                          ) : (
+                            <ImageIcon className="h-4 w-4 text-blue-500" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="truncate text-sm font-medium">
+                            {report.fileName}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {format(new Date(report._creationTime), "MMM d, yyyy")}
+                          </p>
+                        </div>
+                        {report.criticalFlags && report.criticalFlags.length > 0 && (
+                          <Badge variant="destructive" className="text-xs">
+                            {report.criticalFlags.length} flag{report.criticalFlags.length > 1 ? "s" : ""}
+                          </Badge>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              )}
+              {selectedReportIds.length > 0 && (
+                <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
+                  <CheckCircle2 className="h-4 w-4 text-primary" />
+                  {selectedReportIds.length} report{selectedReportIds.length > 1 ? "s" : ""} selected
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         {/* Slot Picker */}
@@ -213,6 +313,11 @@ export default function BookDoctorPage({
                 <p className="font-medium">Ready to book</p>
                 <p className="text-sm text-muted-foreground">
                   {format(selectedDateTime, "EEEE, MMMM d, yyyy 'at' h:mm a")}
+                  {selectedReportIds.length > 0 && (
+                    <span className="ml-2">
+                      • {selectedReportIds.length} report{selectedReportIds.length > 1 ? "s" : ""} shared
+                    </span>
+                  )}
                 </p>
               </div>
             </div>

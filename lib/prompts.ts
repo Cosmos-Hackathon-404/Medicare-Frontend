@@ -10,13 +10,28 @@ TRANSCRIPT:
 
 Respond ONLY with valid JSON (no markdown, no code blocks):
 {
-  "chief_complaint": "...",
-  "diagnosis": "...",
-  "prescriptions": "...",
+  "chief_complaint": "Main reason for the visit in one sentence",
+  "diagnosis": "Medical diagnosis or assessment based on the session",
+  "prescriptions": [
+    {
+      "medication": "Name of medication",
+      "dosage": "Dosage amount (e.g., 500mg)",
+      "frequency": "How often to take (e.g., twice daily)",
+      "duration": "How long to take (e.g., 7 days)",
+      "instructions": "Special instructions (e.g., take with food)"
+    }
+  ],
   "follow_up_actions": ["..."],
   "key_decisions": ["..."],
   "comparison_with_previous": "..."
 }
+
+PRESCRIPTIONS GUIDELINES:
+- Generate appropriate prescriptions based on the diagnosis and symptoms discussed
+- Include common medications that would typically be prescribed for the condition
+- If no medications are needed, return an empty prescriptions array
+- Always include dosage, frequency, duration, and any special instructions
+- These are AI suggestions - the doctor will review and modify as needed
 
 If no relevant patient context exists, set comparison_with_previous to null.`;
 

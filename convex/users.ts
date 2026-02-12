@@ -57,28 +57,6 @@ export const createPatientProfile = mutation({
   },
 });
 
-// ===== Get Doctor Profile by Clerk User ID =====
-export const getDoctorProfile = query({
-  args: { clerkUserId: v.string() },
-  handler: async (ctx, args) => {
-    return await ctx.db
-      .query("doctorProfiles")
-      .withIndex("by_clerkUserId", (q) => q.eq("clerkUserId", args.clerkUserId))
-      .first();
-  },
-});
-
-// ===== Get Patient Profile by Clerk User ID =====
-export const getPatientProfile = query({
-  args: { clerkUserId: v.string() },
-  handler: async (ctx, args) => {
-    return await ctx.db
-      .query("patientProfiles")
-      .withIndex("by_clerkUserId", (q) => q.eq("clerkUserId", args.clerkUserId))
-      .first();
-  },
-});
-
 // ===== Get User Role (check both tables) =====
 export const getUserRole = query({
   args: { clerkUserId: v.string() },

@@ -33,6 +33,7 @@ import {
   Clock,
   CheckCircle2,
   XCircle,
+  FileText,
 } from "lucide-react";
 import Link from "next/link";
 import { format, parseISO, isAfter, isBefore, startOfDay } from "date-fns";
@@ -73,8 +74,8 @@ export default function DoctorAppointmentsPage() {
         return false;
       if (timeFilter === "upcoming" && !isAfter(aptDate, today)) return false;
 
-      // Search filter (by patient ID for now)
-      if (search && !apt.patientClerkId.toLowerCase().includes(search.toLowerCase())) {
+      // Search filter by patient name
+      if (search && !(apt.patientName ?? apt.patientClerkId).toLowerCase().includes(search.toLowerCase())) {
         return false;
       }
 
@@ -197,6 +198,7 @@ export default function DoctorAppointmentsPage() {
                   <TableHead>Date & Time</TableHead>
                   <TableHead>Patient</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Reports</TableHead>
                   <TableHead>Notes</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -261,7 +263,7 @@ function StatsCard({
   );
 }
 
-function AppointmentRow({ appointment }: { appointment: Appointment }) {
+function AppointmentRow({ appointment }: { appointment: Appointment & { patientName?: string } }) {
   const dateTime = parseISO(appointment.dateTime);
   const isScheduled = appointment.status === "scheduled";
 
@@ -280,7 +282,7 @@ function AppointmentRow({ appointment }: { appointment: Appointment }) {
           href={`/doctor/patient/${appointment.patientId}`}
           className="text-primary hover:underline"
         >
-          View Patient
+          {appointment.patientName ?? "View Patient"}
         </Link>
       </TableCell>
       <TableCell>
@@ -301,6 +303,16 @@ function AppointmentRow({ appointment }: { appointment: Appointment }) {
           {appointment.status === "scheduled" && <Clock className="h-3 w-3" />}
           {appointment.status}
         </Badge>
+      </TableCell>
+      <TableCell>
+        {appointment.sharedReportIds && appointment.sharedReportIds.length > 0 ? (
+          <Badge variant="outline" className="gap-1">
+            <FileText className="h-3 w-3" />
+            {appointment.sharedReportIds.length}
+          </Badge>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        )}
       </TableCell>
       <TableCell className="max-w-[200px] truncate text-muted-foreground">
         {appointment.notes || "—"}

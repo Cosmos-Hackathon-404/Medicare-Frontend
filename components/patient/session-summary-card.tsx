@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 import type { Session, Appointment } from "@/types";
 
 interface SessionSummaryCardProps {
-  session: Session;
+  session: Session & { doctorName?: string; doctorSpecialization?: string };
   appointment?: Appointment;
   className?: string;
 }
@@ -26,7 +26,7 @@ export function SessionSummaryCard({
   appointment,
   className,
 }: SessionSummaryCardProps) {
-  // Parse AI summary if it's a JSON string
+  // Parse AI summary if it's a JSON string, normalizing snake_case to camelCase
   let parsedSummary: {
     chiefComplaint?: string;
     diagnosis?: string;
@@ -37,7 +37,14 @@ export function SessionSummaryCard({
 
   if (session.aiSummary) {
     try {
-      parsedSummary = JSON.parse(session.aiSummary);
+      const raw = JSON.parse(session.aiSummary);
+      parsedSummary = {
+        chiefComplaint: raw.chiefComplaint ?? raw.chief_complaint,
+        diagnosis: raw.diagnosis,
+        prescriptions: raw.prescriptions,
+        followUpActions: raw.followUpActions ?? raw.follow_up_actions,
+        keyDecisions: raw.keyDecisions ?? raw.key_decisions,
+      };
     } catch {
       parsedSummary = { chiefComplaint: session.aiSummary };
     }
@@ -47,10 +54,17 @@ export function SessionSummaryCard({
     <Card className={cn("overflow-hidden", className)}>
       <CardHeader className="bg-gradient-to-r from-primary/10 to-primary/5 pb-4">
         <div className="flex items-start justify-between">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Stethoscope className="h-5 w-5 text-primary" />
-            Session Summary
-          </CardTitle>
+          <div>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Stethoscope className="h-5 w-5 text-primary" />
+              {session.doctorName ? `Dr. ${session.doctorName}` : "Session Summary"}
+            </CardTitle>
+            {session.doctorSpecialization && (
+              <p className="mt-1 text-sm text-muted-foreground ml-7">
+                {session.doctorSpecialization}
+              </p>
+            )}
+          </div>
           {appointment && (
             <Badge variant="secondary" className="gap-1">
               <Calendar className="h-3 w-3" />
@@ -174,7 +188,7 @@ export function SessionSummaryCard({
 }
 
 interface SessionListProps {
-  sessions: Session[];
+  sessions: (Session & { doctorName?: string; doctorSpecialization?: string })[];
   appointments?: Appointment[];
   className?: string;
 }

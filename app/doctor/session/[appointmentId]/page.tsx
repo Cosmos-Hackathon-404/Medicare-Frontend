@@ -11,8 +11,9 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Textarea } from "@/components/ui/textarea";
 import { SessionRecorder } from "@/components/doctor/session-recorder";
-import { AISummaryCard } from "@/components/doctor/ai-summary-card";
+import { EditableAISummaryCard } from "@/components/doctor/editable-ai-summary-card";
 import {
   ArrowLeft,
   Calendar,
@@ -20,10 +21,35 @@ import {
   FileText,
   Clock,
   CheckCircle2,
+  Volume2,
+  Edit2,
+  Save,
+  X,
+  Image as ImageIcon,
+  Share2,
+  ExternalLink,
+  AlertTriangle,
 } from "lucide-react";
 import Link from "next/link";
 import { format, parseISO } from "date-fns";
 import { toast } from "sonner";
+
+interface Prescription {
+  medication: string;
+  dosage: string;
+  frequency: string;
+  duration: string;
+  instructions: string;
+}
+
+interface AISummary {
+  chiefComplaint?: string;
+  diagnosis?: string;
+  prescriptions?: Prescription[] | string;
+  followUpActions?: string[];
+  keyDecisions?: string[];
+  comparisonWithPrevious?: string;
+}
 
 export default function SessionPage({
   params,
@@ -35,6 +61,9 @@ export default function SessionPage({
   const doctorClerkId = user?.id ?? "";
 
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isEditingTranscript, setIsEditingTranscript] = useState(false);
+  const [editedTranscript, setEditedTranscript] = useState("");
 
   // Queries
   const appointment = useQuery(api.queries.appointments.getById, {
@@ -43,11 +72,26 @@ export default function SessionPage({
   const session = useQuery(api.queries.sessions.getByAppointment, {
     appointmentId: appointmentId as Id<"appointments">,
   });
+  
+  // Get shared reports for this appointment
+  const sharedReports = useQuery(
+    api.queries.reports.getByIds,
+    appointment?.sharedReportIds && appointment.sharedReportIds.length > 0
+      ? { reportIds: appointment.sharedReportIds }
+      : "skip"
+  );
+  
+  // Get audio URL if session has audio
+  const audioUrl = useQuery(
+    api.queries.sessions.getAudioUrl,
+    session?.audioStorageId 
+      ? { audioStorageId: session.audioStorageId }
+      : "skip"
+  );
 
   // Mutations & Actions
   const generateUploadUrl = useMutation(api.mutations.sessions.generateUploadUrl);
-  const createSession = useMutation(api.mutations.sessions.create);
-  const updateAppointmentStatus = useMutation(api.mutations.appointments.updateStatus);
+  const updateSession = useMutation(api.mutations.sessions.update);
   const summarizeSession = useAction(api.actions.summarizeSession.summarizeSession);
 
   const isLoading = appointment === undefined;
@@ -67,27 +111,13 @@ export default function SessionPage({
       });
       const { storageId } = await uploadResponse.json();
 
-      // Step 2: Create session record
+      // Step 2: Run AI summarization (creates session + updates appointment)
       toast.info("Processing with AI...");
-      const sessionId = await createSession({
-        appointmentId: appointmentId as Id<"appointments">,
-        patientClerkId: appointment.patientClerkId,
-        doctorClerkId,
-        audioStorageId: storageId,
-      });
-
-      // Step 3: Run AI summarization
       await summarizeSession({
         appointmentId: appointmentId as Id<"appointments">,
         audioStorageId: storageId,
         patientClerkId: appointment.patientClerkId,
         doctorClerkId,
-      });
-
-      // Step 4: Mark appointment as completed
-      await updateAppointmentStatus({
-        appointmentId: appointmentId as Id<"appointments">,
-        status: "completed",
       });
 
       toast.success("Session processed successfully!");
@@ -96,6 +126,62 @@ export default function SessionPage({
       toast.error("Failed to process session. Please try again.");
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  const handleSaveSummary = async (updatedSummary: AISummary) => {
+    if (!session) return;
+    
+    setIsSaving(true);
+    try {
+      // Convert prescriptions to JSON string for storage
+      const prescriptionsStr = Array.isArray(updatedSummary.prescriptions)
+        ? JSON.stringify(updatedSummary.prescriptions)
+        : updatedSummary.prescriptions ?? "";
+
+      await updateSession({
+        sessionId: session._id,
+        aiSummary: JSON.stringify(updatedSummary),
+        keyDecisions: updatedSummary.keyDecisions ?? [],
+        prescriptions: prescriptionsStr,
+      });
+      
+      toast.success("Summary saved successfully!");
+    } catch (error) {
+      console.error("Failed to save summary:", error);
+      toast.error("Failed to save summary. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleStartEditTranscript = () => {
+    setEditedTranscript(session?.transcript ?? "");
+    setIsEditingTranscript(true);
+  };
+
+  const handleCancelEditTranscript = () => {
+    setEditedTranscript("");
+    setIsEditingTranscript(false);
+  };
+
+  const handleSaveTranscript = async () => {
+    if (!session) return;
+    
+    setIsSaving(true);
+    try {
+      await updateSession({
+        sessionId: session._id,
+        transcript: editedTranscript,
+      });
+      
+      toast.success("Transcript saved successfully!");
+      setIsEditingTranscript(false);
+    } catch (error) {
+      console.error("Failed to save transcript:", error);
+      toast.error("Failed to save transcript. Please try again.");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -167,7 +253,7 @@ export default function SessionPage({
 
       {/* Main Content */}
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Left Column: Recording / Transcript */}
+        {/* Left Column: Recording / Transcript / Audio */}
         <div className="space-y-6">
           {/* Session Recorder */}
           {!isCompleted && (
@@ -177,21 +263,88 @@ export default function SessionPage({
             />
           )}
 
+          {/* Audio Player */}
+          {audioUrl && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Volume2 className="h-5 w-5 text-primary" />
+                  Session Recording
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <audio
+                  controls
+                  className="w-full"
+                  src={audioUrl}
+                >
+                  Your browser does not support the audio element.
+                </audio>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Listen to the original session recording
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Transcript */}
           {session?.transcript && (
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <FileText className="h-5 w-5 text-primary" />
-                  Session Transcript
-                </CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <FileText className="h-5 w-5 text-primary" />
+                    Session Transcript
+                  </CardTitle>
+                  <div className="flex gap-2">
+                    {isEditingTranscript ? (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={handleCancelEditTranscript}
+                          disabled={isSaving}
+                        >
+                          <X className="mr-1 h-4 w-4" />
+                          Cancel
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={handleSaveTranscript}
+                          disabled={isSaving}
+                        >
+                          <Save className="mr-1 h-4 w-4" />
+                          {isSaving ? "Saving..." : "Save"}
+                        </Button>
+                      </>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleStartEditTranscript}
+                      >
+                        <Edit2 className="mr-1 h-4 w-4" />
+                        Edit
+                      </Button>
+                    )}
+                  </div>
+                </div>
               </CardHeader>
               <CardContent>
-                <ScrollArea className="h-[300px] rounded-lg bg-muted/30 p-4">
-                  <p className="whitespace-pre-wrap text-sm leading-relaxed">
-                    {session.transcript}
-                  </p>
-                </ScrollArea>
+                {isEditingTranscript ? (
+                  <Textarea
+                    value={editedTranscript}
+                    onChange={(e) => setEditedTranscript(e.target.value)}
+                    className="min-h-[300px] resize-none"
+                    placeholder="Enter transcript..."
+                  />
+                ) : (
+                  <ScrollArea className="h-[300px] rounded-lg bg-muted/30 p-4">
+                    <p className="whitespace-pre-wrap text-sm leading-relaxed">
+                      {session.transcript}
+                    </p>
+                  </ScrollArea>
+                )}
               </CardContent>
             </Card>
           )}
@@ -222,52 +375,75 @@ export default function SessionPage({
               </div>
             </CardContent>
           </Card>
+
+          {/* Shared Reports */}
+          {appointment.sharedReportIds && appointment.sharedReportIds.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Share2 className="h-5 w-5 text-primary" />
+                  Shared Reports
+                  <Badge variant="secondary" className="ml-auto">
+                    {appointment.sharedReportIds.length}
+                  </Badge>
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Reports shared by patient for this appointment
+                </p>
+              </CardHeader>
+              <CardContent>
+                {sharedReports === undefined ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-14 w-full" />
+                    <Skeleton className="h-14 w-full" />
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {sharedReports.map((report) => report && (
+                      <Link
+                        key={report._id}
+                        href={`/doctor/patient/${appointment.patientId}?report=${report._id}`}
+                        className="flex items-center gap-3 rounded-lg border p-3 transition-colors hover:bg-muted/50"
+                      >
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted">
+                          {report.fileType === "pdf" ? (
+                            <FileText className="h-5 w-5 text-red-500" />
+                          ) : (
+                            <ImageIcon className="h-5 w-5 text-blue-500" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="truncate text-sm font-medium">
+                            {report.fileName}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {format(new Date(report._creationTime), "MMM d, yyyy")}
+                          </p>
+                        </div>
+                        {report.criticalFlags && report.criticalFlags.length > 0 && (
+                          <Badge variant="destructive" className="gap-1 text-xs">
+                            <AlertTriangle className="h-3 w-3" />
+                            {report.criticalFlags.length}
+                          </Badge>
+                        )}
+                        <ExternalLink className="h-4 w-4 text-muted-foreground" />
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
 
-        {/* Right Column: AI Summary */}
+        {/* Right Column: Editable AI Summary */}
         <div className="space-y-6">
-          <AISummaryCard
+          <EditableAISummaryCard
             summary={session?.aiSummary}
             isLoading={isProcessing}
+            onSave={handleSaveSummary}
+            isSaving={isSaving}
           />
-
-          {/* Key Decisions */}
-          {session?.keyDecisions && session.keyDecisions.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Key Decisions</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-2">
-                  {session.keyDecisions.map((decision, i) => (
-                    <li
-                      key={i}
-                      className="flex items-start gap-2 rounded-lg bg-muted/30 p-3"
-                    >
-                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                      <span className="text-sm">{decision}</span>
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Prescriptions */}
-          {session?.prescriptions && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Prescriptions</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="rounded-lg bg-muted/30 p-4">
-                  <pre className="whitespace-pre-wrap font-mono text-sm">
-                    {session.prescriptions}
-                  </pre>
-                </div>
-              </CardContent>
-            </Card>
-          )}
 
           {/* Session Notes */}
           {appointment.notes && (

@@ -31,3 +31,13 @@ export const getById = query({
     return await ctx.db.get(args.reportId);
   },
 });
+
+export const getByIds = query({
+  args: { reportIds: v.array(v.id("reports")) },
+  handler: async (ctx, args) => {
+    const reports = await Promise.all(
+      args.reportIds.map((id) => ctx.db.get(id))
+    );
+    return reports.filter(Boolean);
+  },
+});

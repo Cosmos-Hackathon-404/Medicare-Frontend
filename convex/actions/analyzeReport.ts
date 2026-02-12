@@ -37,9 +37,18 @@ export const analyzeReport = action({
     const fileBuffer = await fileResponse.arrayBuffer();
     const fileBase64 = Buffer.from(fileBuffer).toString("base64");
 
-    // Determine MIME type
+    // Determine MIME type from file type
+    const imageMimeMap: Record<string, string> = {
+      jpg: "image/jpeg",
+      jpeg: "image/jpeg",
+      png: "image/png",
+      webp: "image/webp",
+      gif: "image/gif",
+    };
     const mimeType =
-      args.fileType === "pdf" ? "application/pdf" : "image/png";
+      args.fileType === "pdf"
+        ? "application/pdf"
+        : imageMimeMap[args.fileType.toLowerCase()] ?? "image/png";
 
     // Step 2: Get patient context from Supermemory
     let patientContextStr = "No previous patient context available.";
@@ -65,7 +74,7 @@ export const analyzeReport = action({
     });
 
     const analysisResponse = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
+      model: "gemini-3-pro-preview",
       contents: [
         {
           role: "user",
@@ -95,7 +104,7 @@ export const analyzeReport = action({
       };
     }
 
-    // Step 4: Update report in Convex with analysis
+    // Extract critical flags
     const criticalFlags = (parsed.critical_flags ?? []).map(
       (flag: { issue: string; severity: string; details: string }) => ({
         issue: flag.issue,
@@ -104,13 +113,7 @@ export const analyzeReport = action({
       })
     );
 
-    await ctx.runMutation(api.mutations.reports.updateAnalysis, {
-      reportId: args.reportId,
-      aiSummary: parsed.plain_language_summary ?? analysisText,
-      criticalFlags,
-    });
-
-    // Step 5: Store analysis in Supermemory
+    // Step 4: Store analysis in Supermemory
     let supermemoryDocId: string | undefined;
     try {
       const memResult = await supermemory.add({
@@ -127,7 +130,7 @@ Pre-diagnosis Insights: ${parsed.pre_diagnosis_insights}`,
       // Non-critical failure
     }
 
-    // Step 5b: Upload original file to Supermemory for OCR extraction
+    // Step 4b: Upload original file to Supermemory for OCR extraction
     try {
       const fileBlob = new Blob([fileBuffer], { type: mimeType });
       const formData = new FormData();
@@ -146,14 +149,13 @@ Pre-diagnosis Insights: ${parsed.pre_diagnosis_insights}`,
       // File upload to Supermemory failed — non-critical
     }
 
-    if (supermemoryDocId) {
-      await ctx.runMutation(api.mutations.reports.updateAnalysis, {
-        reportId: args.reportId,
-        aiSummary: parsed.plain_language_summary ?? analysisText,
-        criticalFlags,
-        supermemoryDocId,
-      });
-    }
+    // Step 5: Update report in Convex with analysis + optional supermemoryDocId
+    await ctx.runMutation(api.mutations.reports.updateAnalysis, {
+      reportId: args.reportId,
+      aiSummary: parsed.plain_language_summary ?? analysisText,
+      criticalFlags,
+      ...(supermemoryDocId ? { supermemoryDocId } : {}),
+    });
 
     return {
       summary: parsed.plain_language_summary,

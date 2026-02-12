@@ -1,4 +1,4 @@
-import { Mail, Phone, MapPin } from 'lucide-react'
+import { Mail } from 'lucide-react'
 
 export function Footer() {
   const currentYear = new Date().getFullYear()
@@ -6,7 +6,7 @@ export function Footer() {
   return (
     <footer className="bg-card border-t border-border py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
-        <div className="grid md:grid-cols-4 gap-8 mb-8">
+        <div className="grid md:grid-cols-3 gap-8 mb-8">
           {/* Company Info */}
           <div>
             <div className="flex items-center gap-2 mb-4">
@@ -20,43 +20,26 @@ export function Footer() {
             </p>
           </div>
 
-          {/* Product */}
+          {/* Navigation */}
           <div>
-            <h4 className="font-semibold text-foreground mb-4">Product</h4>
+            <h4 className="font-semibold text-foreground mb-4">Quick Links</h4>
             <ul className="space-y-2 text-sm">
               <li><a href="#features" className="text-muted-foreground hover:text-foreground transition">Features</a></li>
-              <li><a href="#benefits" className="text-muted-foreground hover:text-foreground transition">How It Works</a></li>
-              <li><a href="#" className="text-muted-foreground hover:text-foreground transition">Security</a></li>
-              <li><a href="#" className="text-muted-foreground hover:text-foreground transition">Integrations</a></li>
+              <li><a href="#team" className="text-muted-foreground hover:text-foreground transition">How It Works</a></li>
+              <li><a href="#benefits" className="text-muted-foreground hover:text-foreground transition">Why Medicare AI</a></li>
             </ul>
           </div>
 
-          {/* Company */}
+          {/* Get Started */}
           <div>
-            <h4 className="font-semibold text-foreground mb-4">Company</h4>
-            <ul className="space-y-2 text-sm">
-              <li><a href="#team" className="text-muted-foreground hover:text-foreground transition">About</a></li>
-              <li><a href="#" className="text-muted-foreground hover:text-foreground transition">Blog</a></li>
-              <li><a href="#" className="text-muted-foreground hover:text-foreground transition">Careers</a></li>
-              <li><a href="#" className="text-muted-foreground hover:text-foreground transition">Contact</a></li>
-            </ul>
-          </div>
-
-          {/* Contact */}
-          <div>
-            <h4 className="font-semibold text-foreground mb-4">Contact</h4>
+            <h4 className="font-semibold text-foreground mb-4">Get Started</h4>
             <ul className="space-y-2 text-sm">
               <li className="flex gap-2 items-center">
                 <Mail className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                <a href="mailto:info@medicareai.com" className="text-muted-foreground hover:text-foreground transition">info@medicareai.com</a>
+                <a href="/sign-up" className="text-muted-foreground hover:text-foreground transition">Create an Account</a>
               </li>
-              <li className="flex gap-2 items-center">
-                <Phone className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                <a href="tel:+1234567890" className="text-muted-foreground hover:text-foreground transition">+1 (234) 567-890</a>
-              </li>
-              <li className="flex gap-2 items-center">
-                <MapPin className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                <span className="text-muted-foreground">San Francisco, CA</span>
+              <li>
+                <a href="/sign-in" className="text-muted-foreground hover:text-foreground transition">Sign In</a>
               </li>
             </ul>
           </div>
@@ -68,10 +51,6 @@ export function Footer() {
           <p className="text-muted-foreground">
             © {currentYear} Medicare AI. All rights reserved.
           </p>
-          <div className="flex gap-6">
-            <a href="#" className="text-muted-foreground hover:text-foreground transition">Privacy Policy</a>
-            <a href="#" className="text-muted-foreground hover:text-foreground transition">Terms of Service</a>
-          </div>
         </div>
       </div>
     </footer>

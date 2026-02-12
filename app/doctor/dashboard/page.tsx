@@ -244,7 +244,7 @@ function AppointmentItem({
   appointment,
   showDate,
 }: {
-  appointment: Appointment;
+  appointment: Appointment & { patientName?: string };
   showDate?: boolean;
 }) {
   const dateTime = parseISO(appointment.dateTime);
@@ -257,7 +257,7 @@ function AppointmentItem({
             <Users className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <p className="font-medium">Patient Session</p>
+            <p className="font-medium">{appointment.patientName ?? "Patient"}</p>
             <p className="text-sm text-muted-foreground">
               {showDate
                 ? format(dateTime, "MMM d, yyyy 'at' h:mm a")

@@ -27,6 +27,9 @@ import {
   Share2,
   History,
   Inbox,
+  Mic,
+  CalendarCog,
+  Settings,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { Separator } from "@/components/ui/separator";
@@ -40,8 +43,11 @@ interface NavItem {
 const doctorNav: NavItem[] = [
   { label: "Dashboard", href: "/doctor/dashboard", icon: LayoutDashboard },
   { label: "Appointments", href: "/doctor/appointments", icon: Calendar },
+  { label: "Sessions", href: "/doctor/sessions", icon: Mic },
   { label: "Reports", href: "/doctor/reports", icon: FileText },
   { label: "Shared Context", href: "/doctor/shared-context", icon: Inbox },
+  { label: "Availability", href: "/doctor/availability", icon: CalendarCog },
+  { label: "Settings", href: "/doctor/settings", icon: Settings },
 ];
 
 const patientNav: NavItem[] = [
@@ -51,6 +57,7 @@ const patientNav: NavItem[] = [
   { label: "My Reports", href: "/patient/reports", icon: FileText },
   { label: "Sessions", href: "/patient/sessions", icon: History },
   { label: "Share Context", href: "/patient/share", icon: Share2 },
+  { label: "Settings", href: "/patient/settings", icon: Settings },
 ];
 
 export function AppSidebar({

@@ -15,19 +15,7 @@ import {
 } from "@/components/ui/select";
 import { DoctorList } from "@/components/patient/doctor-card";
 import { Search, Filter, Stethoscope } from "lucide-react";
-
-const SPECIALIZATIONS = [
-  "General Practitioner",
-  "Cardiologist",
-  "Dermatologist",
-  "Neurologist",
-  "Pediatrician",
-  "Psychiatrist",
-  "Orthopedic",
-  "ENT Specialist",
-  "Gynecologist",
-  "Oncologist",
-];
+import { SPECIALIZATIONS } from "@/lib/constants";
 
 export default function BrowseDoctorsPage() {
   const [search, setSearch] = useState("");

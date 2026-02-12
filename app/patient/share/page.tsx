@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useQuery, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -29,7 +29,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import type { Session, Report, DoctorProfile } from "@/types";
+import type { Session, Report } from "@/types";
 
 export default function ShareContextPage() {
   const { user } = useUser();
@@ -39,6 +39,7 @@ export default function ShareContextPage() {
   const [selectedReports, setSelectedReports] = useState<Set<string>>(new Set());
   const [selectedDoctor, setSelectedDoctor] = useState<string>("");
   const [isSharing, setIsSharing] = useState(false);
+  const [initialized, setInitialized] = useState(false);
 
   // Queries
   const sessions = useQuery(
@@ -58,21 +59,28 @@ export default function ShareContextPage() {
 
   const isLoading = !sessions || !reports || !doctors;
 
+  // Pre-select ALL sessions and reports by default (opt-out model)
+  useEffect(() => {
+    if (!initialized && sessions && reports) {
+      setSelectedSessions(new Set(sessions.map((s) => s._id)));
+      setSelectedReports(new Set(reports.map((r) => r._id)));
+      setInitialized(true);
+    }
+  }, [sessions, reports, initialized]);
+
   // Get the doctor that the patient has seen (from sessions)
   const seenDoctorIds = new Set(sessions?.map((s) => s.doctorClerkId) ?? []);
-  const seenDoctors = doctors?.filter((d) => seenDoctorIds.has(d.clerkUserId)) ?? [];
 
-  // Get doctors that haven't seen the patient
+  // Doctors that haven't seen the patient yet are the primary targets
   const otherDoctors = doctors?.filter((d) => !seenDoctorIds.has(d.clerkUserId)) ?? [];
+  // Seen doctors still available as option
+  const seenDoctors = doctors?.filter((d) => seenDoctorIds.has(d.clerkUserId)) ?? [];
 
   const handleToggleSession = (sessionId: string) => {
     setSelectedSessions((prev) => {
       const next = new Set(prev);
-      if (next.has(sessionId)) {
-        next.delete(sessionId);
-      } else {
-        next.add(sessionId);
-      }
+      if (next.has(sessionId)) next.delete(sessionId);
+      else next.add(sessionId);
       return next;
     });
   };
@@ -80,13 +88,30 @@ export default function ShareContextPage() {
   const handleToggleReport = (reportId: string) => {
     setSelectedReports((prev) => {
       const next = new Set(prev);
-      if (next.has(reportId)) {
-        next.delete(reportId);
-      } else {
-        next.add(reportId);
-      }
+      if (next.has(reportId)) next.delete(reportId);
+      else next.add(reportId);
       return next;
     });
+  };
+
+  const toggleAllSessions = () => {
+    if (sessions) {
+      if (selectedSessions.size === sessions.length) {
+        setSelectedSessions(new Set());
+      } else {
+        setSelectedSessions(new Set(sessions.map((s) => s._id)));
+      }
+    }
+  };
+
+  const toggleAllReports = () => {
+    if (reports) {
+      if (selectedReports.size === reports.length) {
+        setSelectedReports(new Set());
+      } else {
+        setSelectedReports(new Set(reports.map((r) => r._id)));
+      }
+    }
   };
 
   const handleShare = async () => {
@@ -99,11 +124,11 @@ export default function ShareContextPage() {
       return;
     }
 
-    // Get the fromDoctor (first seen doctor with selected sessions)
     const firstSelectedSession = sessions?.find((s) =>
       selectedSessions.has(s._id)
     );
-    const fromDoctorClerkId = firstSelectedSession?.doctorClerkId ?? 
+    const fromDoctorClerkId =
+      firstSelectedSession?.doctorClerkId ??
       sessions?.[0]?.doctorClerkId ?? "";
 
     if (!fromDoctorClerkId) {
@@ -113,9 +138,8 @@ export default function ShareContextPage() {
 
     setIsSharing(true);
     try {
-      // Generate AI consolidated summary and create shared context
       toast.info("Generating AI summary and sharing context...");
-      const result = await generateSharedContext({
+      await generateSharedContext({
         patientClerkId,
         fromDoctorClerkId,
         toDoctorClerkId: selectedDoctor,
@@ -123,11 +147,11 @@ export default function ShareContextPage() {
         reportIds: Array.from(selectedReports) as Id<"reports">[],
       });
 
-      console.log("Shared context created:", result.sharedContextId);
       toast.success("Context shared successfully!");
       setSelectedSessions(new Set());
       setSelectedReports(new Set());
       setSelectedDoctor("");
+      setInitialized(false);
     } catch (error) {
       console.error("Failed to share context:", error);
       toast.error("Failed to share context. Please try again.");
@@ -137,6 +161,8 @@ export default function ShareContextPage() {
   };
 
   const totalSelected = selectedSessions.size + selectedReports.size;
+  const allSessionsSelected = sessions ? selectedSessions.size === sessions.length : false;
+  const allReportsSelected = reports ? selectedReports.size === reports.length : false;
 
   return (
     <div className="space-y-6">
@@ -146,32 +172,52 @@ export default function ShareContextPage() {
           Share Medical Context
         </h1>
         <p className="text-muted-foreground">
-          Select sessions and reports to share with a new doctor.
+          Share your complete medical history with a new doctor — all records are
+          pre-selected. Deselect any you want to exclude.
         </p>
       </div>
 
-      {/* Doctor Selection */}
+      {/* Step 1: Doctor Selection */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             <User className="h-5 w-5 text-primary" />
-            Select Doctor to Share With
+            Step 1: Select Doctor to Share With
           </CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (
             <Skeleton className="h-10 w-full" />
-          ) : otherDoctors.length > 0 ? (
+          ) : otherDoctors.length > 0 || seenDoctors.length > 0 ? (
             <Select value={selectedDoctor} onValueChange={setSelectedDoctor}>
               <SelectTrigger>
                 <SelectValue placeholder="Choose a doctor..." />
               </SelectTrigger>
               <SelectContent>
-                {otherDoctors.map((doctor) => (
-                  <SelectItem key={doctor._id} value={doctor.clerkUserId}>
-                    Dr. {doctor.name} - {doctor.specialization}
-                  </SelectItem>
-                ))}
+                {otherDoctors.length > 0 && (
+                  <>
+                    <SelectItem value="__label_new" disabled>
+                      — New Doctors —
+                    </SelectItem>
+                    {otherDoctors.map((doctor) => (
+                      <SelectItem key={doctor._id} value={doctor.clerkUserId}>
+                        Dr. {doctor.name} — {doctor.specialization}
+                      </SelectItem>
+                    ))}
+                  </>
+                )}
+                {seenDoctors.length > 0 && (
+                  <>
+                    <SelectItem value="__label_seen" disabled>
+                      — Previous Doctors —
+                    </SelectItem>
+                    {seenDoctors.map((doctor) => (
+                      <SelectItem key={doctor._id} value={doctor.clerkUserId}>
+                        Dr. {doctor.name} — {doctor.specialization}
+                      </SelectItem>
+                    ))}
+                  </>
+                )}
               </SelectContent>
             </Select>
           ) : (
@@ -183,8 +229,9 @@ export default function ShareContextPage() {
         </CardContent>
       </Card>
 
+      {/* Step 2: Review records (pre-selected) */}
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Sessions Selection */}
+        {/* Sessions */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center justify-between text-lg">
@@ -192,9 +239,19 @@ export default function ShareContextPage() {
                 <Mic className="h-5 w-5 text-primary" />
                 Sessions
               </span>
-              <Badge variant="secondary">
-                {selectedSessions.size} selected
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary">
+                  {selectedSessions.size}/{sessions?.length ?? 0}
+                </Badge>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={toggleAllSessions}
+                  className="text-xs"
+                >
+                  {allSessionsSelected ? "Deselect All" : "Select All"}
+                </Button>
+              </div>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -211,6 +268,7 @@ export default function ShareContextPage() {
                     <SessionSelectItem
                       key={session._id}
                       session={session}
+                      doctorName={(session as typeof session & { doctorName?: string }).doctorName}
                       isSelected={selectedSessions.has(session._id)}
                       onToggle={() => handleToggleSession(session._id)}
                     />
@@ -226,7 +284,7 @@ export default function ShareContextPage() {
           </CardContent>
         </Card>
 
-        {/* Reports Selection */}
+        {/* Reports */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center justify-between text-lg">
@@ -234,9 +292,19 @@ export default function ShareContextPage() {
                 <FileText className="h-5 w-5 text-primary" />
                 Reports
               </span>
-              <Badge variant="secondary">
-                {selectedReports.size} selected
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary">
+                  {selectedReports.size}/{reports?.length ?? 0}
+                </Badge>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={toggleAllReports}
+                  className="text-xs"
+                >
+                  {allReportsSelected ? "Deselect All" : "Select All"}
+                </Button>
+              </div>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -270,7 +338,7 @@ export default function ShareContextPage() {
       </div>
 
       {/* Share Button */}
-      {totalSelected > 0 && selectedDoctor && (
+      {selectedDoctor && (
         <Card className="border-primary/30 bg-primary/5">
           <CardContent className="flex flex-wrap items-center justify-between gap-4 p-6">
             <div className="flex items-center gap-4">
@@ -281,14 +349,14 @@ export default function ShareContextPage() {
                 <p className="font-medium">Ready to share</p>
                 <p className="text-sm text-muted-foreground">
                   {selectedSessions.size} session(s), {selectedReports.size}{" "}
-                  report(s) selected
+                  report(s) will be shared
                 </p>
               </div>
             </div>
             <Button
               size="lg"
               onClick={handleShare}
-              disabled={isSharing}
+              disabled={isSharing || totalSelected === 0}
               className="gap-2"
             >
               {isSharing ? (
@@ -312,10 +380,12 @@ export default function ShareContextPage() {
 
 function SessionSelectItem({
   session,
+  doctorName,
   isSelected,
   onToggle,
 }: {
   session: Session;
+  doctorName?: string;
   isSelected: boolean;
   onToggle: () => void;
 }) {
@@ -328,7 +398,9 @@ function SessionSelectItem({
     >
       <Checkbox checked={isSelected} />
       <div className="flex-1 min-w-0">
-        <p className="font-medium">Session Recording</p>
+        <p className="font-medium">
+          {doctorName ? `Dr. ${doctorName}` : "Session Recording"}
+        </p>
         <p className="text-sm text-muted-foreground">
           {format(new Date(session._creationTime), "MMM d, yyyy")}
         </p>

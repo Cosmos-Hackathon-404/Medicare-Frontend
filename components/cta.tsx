@@ -15,7 +15,7 @@ export function CTA() {
               Ready to Transform Healthcare?
             </h2>
             <p className="text-lg text-muted-foreground text-center mb-8 max-w-2xl mx-auto">
-              Join thousands of healthcare professionals using Medicare AI to streamline documentation and improve patient care.
+              Start using Medicare AI to streamline documentation, share patient context seamlessly, and improve care quality.
             </p>
 
             <div className="grid md:grid-cols-2 gap-8 mb-8">
@@ -66,7 +66,7 @@ export function CTA() {
             </div>
 
             <p className="text-center text-sm text-muted-foreground mt-6">
-              No credit card required. Start with your free account today.
+              Create your account in seconds and get started today.
             </p>
           </div>
         </Card>

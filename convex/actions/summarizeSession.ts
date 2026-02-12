@@ -30,7 +30,13 @@ export const summarizeSession = action({
     transcript: string;
     summary: Record<string, unknown>;
     keyDecisions: string[];
-    prescriptions: string;
+    prescriptions: Array<{
+      medication: string;
+      dosage: string;
+      frequency: string;
+      duration: string;
+      instructions: string;
+    }>;
   }> => {
     const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_GEMINI_API_KEY! });
     const supermemory = new Supermemory({
@@ -47,7 +53,7 @@ export const summarizeSession = action({
 
     // Step 2: Transcribe with Gemini
     const transcriptionResponse = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
+      model: "gemini-3-pro-preview",
       contents: [
         {
           role: "user",
@@ -98,7 +104,7 @@ export const summarizeSession = action({
     });
 
     const summaryResponse = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
+      model: "gemini-3-pro-preview",
       contents: prompt,
     });
     const summaryText = summaryResponse.text ?? "";
@@ -115,7 +121,7 @@ export const summarizeSession = action({
       parsed = {
         chief_complaint: "Unable to parse",
         diagnosis: summaryText,
-        prescriptions: "",
+        prescriptions: [],
         follow_up_actions: [],
         key_decisions: [],
       };
@@ -132,13 +138,31 @@ export const summarizeSession = action({
       }
     );
 
+    // Normalize prescriptions - handle both string and array formats
+    const rawPrescriptions = parsed.prescriptions ?? [];
+    const normalizedPrescriptions = Array.isArray(rawPrescriptions) 
+      ? rawPrescriptions 
+      : typeof rawPrescriptions === 'string' && rawPrescriptions 
+        ? [{ medication: rawPrescriptions, dosage: '', frequency: '', duration: '', instructions: '' }]
+        : [];
+
+    // Convert snake_case AI output to camelCase for frontend compatibility
+    const normalizedSummary = {
+      chiefComplaint: parsed.chief_complaint ?? parsed.chiefComplaint ?? "",
+      diagnosis: parsed.diagnosis ?? "",
+      prescriptions: normalizedPrescriptions,
+      followUpActions: parsed.follow_up_actions ?? parsed.followUpActions ?? [],
+      keyDecisions: parsed.key_decisions ?? parsed.keyDecisions ?? [],
+      comparisonWithPrevious: parsed.comparison_with_previous ?? parsed.comparisonWithPrevious ?? null,
+    };
+
     // Update session with transcript + summary
     await ctx.runMutation(api.mutations.sessions.update, {
       sessionId,
       transcript,
-      aiSummary: JSON.stringify(parsed),
-      keyDecisions: parsed.key_decisions ?? [],
-      prescriptions: parsed.prescriptions ?? "",
+      aiSummary: JSON.stringify(normalizedSummary),
+      keyDecisions: normalizedSummary.keyDecisions,
+      prescriptions: JSON.stringify(normalizedPrescriptions),
     });
 
     // Update appointment status to completed
@@ -147,16 +171,21 @@ export const summarizeSession = action({
       status: "completed",
     });
 
+    // Format prescriptions for supermemory storage
+    const prescriptionText = normalizedPrescriptions.map((p: { medication: string; dosage: string; frequency: string; duration: string }) => 
+      `${p.medication} ${p.dosage} - ${p.frequency} for ${p.duration}`
+    ).join(", ");
+
     // Step 6: Store in Supermemory for future context
     let supermemoryDocId: string | undefined;
     try {
       const memResult = await supermemory.add({
         content: `Session on ${new Date().toISOString()}:
-Summary: ${parsed.chief_complaint}
+Summary: ${parsed.chief_complaint ?? parsed.chiefComplaint}
 Diagnosis: ${parsed.diagnosis}
-Prescriptions: ${parsed.prescriptions}
-Key Decisions: ${(parsed.key_decisions ?? []).join(", ")}
-Follow-up: ${(parsed.follow_up_actions ?? []).join(", ")}`,
+Prescriptions: ${prescriptionText}
+Key Decisions: ${(parsed.key_decisions ?? parsed.keyDecisions ?? []).join(", ")}
+Follow-up: ${(parsed.follow_up_actions ?? parsed.followUpActions ?? []).join(", ")}`,
         containerTags: [args.patientClerkId],
         customId: `session_${sessionId}`,
       });
@@ -175,9 +204,9 @@ Follow-up: ${(parsed.follow_up_actions ?? []).join(", ")}`,
     return {
       sessionId,
       transcript,
-      summary: parsed,
-      keyDecisions: parsed.key_decisions ?? [],
-      prescriptions: parsed.prescriptions ?? "",
+      summary: normalizedSummary,
+      keyDecisions: normalizedSummary.keyDecisions,
+      prescriptions: normalizedSummary.prescriptions,
     };
   },
 });

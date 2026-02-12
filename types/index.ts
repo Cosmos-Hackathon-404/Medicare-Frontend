@@ -49,6 +49,7 @@ export interface Appointment {
   dateTime: string; // ISO string
   status: AppointmentStatus;
   notes?: string;
+  sharedReportIds?: Id<"reports">[]; // Reports shared with doctor for this appointment
 }
 
 // ===== Session =====

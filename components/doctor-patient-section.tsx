@@ -50,7 +50,7 @@ export function DoctorPatientSection() {
                 <div className="flex items-start gap-3">
                   <span className="text-primary font-bold mt-1">✓</span>
                   <span className="text-muted-foreground">
-                    <strong className="text-foreground">Reduce documentation time</strong> by up to 80%
+                    <strong className="text-foreground">Reduce documentation time</strong> with AI-generated clinical notes
                   </span>
                 </div>
               </div>

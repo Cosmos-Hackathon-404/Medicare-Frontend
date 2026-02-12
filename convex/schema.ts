@@ -41,6 +41,7 @@ export default defineSchema({
     dateTime: v.string(), // ISO string
     status: v.string(), // "scheduled" | "completed" | "cancelled"
     notes: v.optional(v.string()),
+    sharedReportIds: v.optional(v.array(v.id("reports"))), // Reports shared with doctor for this appointment
   })
     .index("by_doctorClerkId", ["doctorClerkId"])
     .index("by_patientClerkId", ["patientClerkId"])

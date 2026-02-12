@@ -17,7 +17,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import Link from "next/link";
-import { format, parseISO, isAfter, isBefore, addDays } from "date-fns";
+import { format, parseISO, isAfter } from "date-fns";
 import type { Appointment } from "@/types";
 
 export default function PatientDashboardPage() {
@@ -201,7 +201,9 @@ export default function PatientDashboardPage() {
                         <Stethoscope className="h-5 w-5 text-primary" />
                       </div>
                       <div>
-                        <p className="font-medium">Session Recording</p>
+                        <p className="font-medium">
+                          Dr. {(session as typeof session & { doctorName?: string }).doctorName ?? "Doctor"}
+                        </p>
                         <p className="text-sm text-muted-foreground">
                           {format(
                             new Date(session._creationTime),
@@ -302,7 +304,7 @@ function StatsCard({
   );
 }
 
-function AppointmentItem({ appointment }: { appointment: Appointment }) {
+function AppointmentItem({ appointment }: { appointment: Appointment & { doctorName?: string; doctorSpecialization?: string } }) {
   const dateTime = parseISO(appointment.dateTime);
 
   return (
@@ -312,10 +314,13 @@ function AppointmentItem({ appointment }: { appointment: Appointment }) {
           <Calendar className="h-5 w-5 text-primary" />
         </div>
         <div>
-          <p className="font-medium">{format(dateTime, "EEEE, MMMM d")}</p>
+          <p className="font-medium">Dr. {appointment.doctorName ?? "Doctor"}</p>
           <p className="text-sm text-muted-foreground">
-            {format(dateTime, "h:mm a")}
+            {format(dateTime, "EEEE, MMMM d")} at {format(dateTime, "h:mm a")}
           </p>
+          {appointment.doctorSpecialization && (
+            <p className="text-xs text-muted-foreground">{appointment.doctorSpecialization}</p>
+          )}
         </div>
       </div>
       <Badge variant="secondary" className="gap-1">

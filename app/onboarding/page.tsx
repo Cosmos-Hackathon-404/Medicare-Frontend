@@ -6,6 +6,17 @@ import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { SPECIALIZATIONS, BLOOD_GROUPS } from "@/lib/constants";
 
 type Role = "doctor" | "patient";
 
@@ -54,6 +65,15 @@ export default function OnboardingPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!role || !user) return;
+
+    // Validate age
+    if (role === "patient") {
+      const age = parseInt(patientForm.age);
+      if (isNaN(age) || age < 1 || age > 150) {
+        return;
+      }
+    }
+
     setLoading(true);
 
     try {
@@ -71,19 +91,14 @@ export default function OnboardingPage() {
           clerkUserId: user.id,
           name: patientForm.name,
           email: user.emailAddresses[0]?.emailAddress ?? "",
-          age: parseInt(patientForm.age) || 0,
+          age: parseInt(patientForm.age),
           bloodGroup: patientForm.bloodGroup || undefined,
           allergies: patientForm.allergies || undefined,
           emergencyContact: patientForm.emergencyContact || undefined,
         });
       }
 
-      // Set role in Clerk publicMetadata
-      await user.update({
-        unsafeMetadata: { role },
-      });
-
-      // Also update via backend for publicMetadata
+      // Set role in Clerk publicMetadata via backend
       await fetch("/api/set-role", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -145,35 +160,42 @@ export default function OnboardingPage() {
               ← Change role
             </button>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Full Name *</label>
-              <input
+              <Label htmlFor="doctor-name">Full Name *</Label>
+              <Input
+                id="doctor-name"
                 required
                 value={doctorForm.name}
                 onChange={(e) =>
                   setDoctorForm({ ...doctorForm, name: e.target.value })
                 }
-                className="w-full rounded-md border bg-background px-3 py-2 text-sm"
                 placeholder="Dr. John Smith"
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Specialization *</label>
-              <input
-                required
+              <Label>Specialization *</Label>
+              <Select
                 value={doctorForm.specialization}
-                onChange={(e) =>
-                  setDoctorForm({
-                    ...doctorForm,
-                    specialization: e.target.value,
-                  })
+                onValueChange={(value) =>
+                  setDoctorForm({ ...doctorForm, specialization: value })
                 }
-                className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-                placeholder="Cardiology"
-              />
+                required
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select specialization" />
+                </SelectTrigger>
+                <SelectContent>
+                  {SPECIALIZATIONS.map((spec) => (
+                    <SelectItem key={spec} value={spec}>
+                      {spec}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">License Number *</label>
-              <input
+              <Label htmlFor="license">License Number *</Label>
+              <Input
+                id="license"
                 required
                 value={doctorForm.licenseNumber}
                 onChange={(e) =>
@@ -182,23 +204,26 @@ export default function OnboardingPage() {
                     licenseNumber: e.target.value,
                   })
                 }
-                className="w-full rounded-md border bg-background px-3 py-2 text-sm"
                 placeholder="MD-12345"
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Bio</label>
-              <textarea
+              <Label htmlFor="bio">Bio</Label>
+              <Textarea
+                id="bio"
                 value={doctorForm.bio}
                 onChange={(e) =>
                   setDoctorForm({ ...doctorForm, bio: e.target.value })
                 }
-                className="w-full rounded-md border bg-background px-3 py-2 text-sm"
                 placeholder="Brief professional bio..."
                 rows={3}
               />
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={loading || !doctorForm.specialization}
+            >
               {loading ? "Creating profile..." : "Complete Setup"}
             </Button>
           </form>
@@ -215,47 +240,56 @@ export default function OnboardingPage() {
               ← Change role
             </button>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Full Name *</label>
-              <input
+              <Label htmlFor="patient-name">Full Name *</Label>
+              <Input
+                id="patient-name"
                 required
                 value={patientForm.name}
                 onChange={(e) =>
                   setPatientForm({ ...patientForm, name: e.target.value })
                 }
-                className="w-full rounded-md border bg-background px-3 py-2 text-sm"
                 placeholder="Jane Doe"
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Age *</label>
-              <input
+              <Label htmlFor="age">Age *</Label>
+              <Input
+                id="age"
                 required
                 type="number"
+                min={1}
+                max={150}
                 value={patientForm.age}
                 onChange={(e) =>
                   setPatientForm({ ...patientForm, age: e.target.value })
                 }
-                className="w-full rounded-md border bg-background px-3 py-2 text-sm"
                 placeholder="30"
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Blood Group</label>
-              <input
+              <Label>Blood Group</Label>
+              <Select
                 value={patientForm.bloodGroup}
-                onChange={(e) =>
-                  setPatientForm({
-                    ...patientForm,
-                    bloodGroup: e.target.value,
-                  })
+                onValueChange={(value) =>
+                  setPatientForm({ ...patientForm, bloodGroup: value })
                 }
-                className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-                placeholder="O+"
-              />
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select blood group" />
+                </SelectTrigger>
+                <SelectContent>
+                  {BLOOD_GROUPS.map((bg) => (
+                    <SelectItem key={bg} value={bg}>
+                      {bg}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Allergies</label>
-              <input
+              <Label htmlFor="allergies">Allergies</Label>
+              <Input
+                id="allergies"
                 value={patientForm.allergies}
                 onChange={(e) =>
                   setPatientForm({
@@ -263,13 +297,13 @@ export default function OnboardingPage() {
                     allergies: e.target.value,
                   })
                 }
-                className="w-full rounded-md border bg-background px-3 py-2 text-sm"
                 placeholder="Penicillin, Peanuts"
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Emergency Contact</label>
-              <input
+              <Label htmlFor="emergency">Emergency Contact</Label>
+              <Input
+                id="emergency"
                 value={patientForm.emergencyContact}
                 onChange={(e) =>
                   setPatientForm({
@@ -277,7 +311,6 @@ export default function OnboardingPage() {
                     emergencyContact: e.target.value,
                   })
                 }
-                className="w-full rounded-md border bg-background px-3 py-2 text-sm"
                 placeholder="+1 555-0123"
               />
             </div>

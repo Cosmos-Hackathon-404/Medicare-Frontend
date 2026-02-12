@@ -27,10 +27,170 @@ import {
   Calendar,
   CheckCircle2,
   Clock,
+  Pill,
+  AlertTriangle,
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import type { SharedContext, Session, Report } from "@/types";
+import type { SharedContext } from "@/types";
+
+// Sub-component that fetches and displays session/report details
+function SharedContextDetail({ context }: { context: SharedContext }) {
+  const sessionDetails = useQuery(
+    api.queries.sessions.getByIds,
+    context.sessionIds.length > 0
+      ? { sessionIds: context.sessionIds as Id<"sessions">[] }
+      : "skip"
+  );
+  const reportDetails = useQuery(
+    api.queries.reports.getByIds,
+    context.reportIds.length > 0
+      ? { reportIds: context.reportIds as Id<"reports">[] }
+      : "skip"
+  );
+
+  return (
+    <Tabs defaultValue="summary" className="mt-4">
+      <TabsList className="grid w-full grid-cols-3">
+        <TabsTrigger value="summary">AI Summary</TabsTrigger>
+        <TabsTrigger value="sessions">
+          Sessions ({context.sessionIds.length})
+        </TabsTrigger>
+        <TabsTrigger value="reports">
+          Reports ({context.reportIds.length})
+        </TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="summary" className="mt-4">
+        <ScrollArea className="h-[400px]">
+          {context.aiConsolidatedSummary ? (
+            <div className="space-y-4 rounded-lg bg-muted/30 p-4">
+              <p className="whitespace-pre-wrap text-sm leading-relaxed">
+                {context.aiConsolidatedSummary}
+              </p>
+            </div>
+          ) : (
+            <div className="py-8 text-center text-muted-foreground">
+              <FileText className="mx-auto mb-3 h-10 w-10 opacity-40" />
+              <p>No AI summary available yet.</p>
+            </div>
+          )}
+        </ScrollArea>
+      </TabsContent>
+
+      <TabsContent value="sessions" className="mt-4">
+        <ScrollArea className="h-[400px]">
+          <div className="space-y-3 p-1">
+            {context.sessionIds.length === 0 ? (
+              <div className="py-8 text-center text-muted-foreground">
+                <Mic className="mx-auto mb-3 h-10 w-10 opacity-40" />
+                <p>No sessions included.</p>
+              </div>
+            ) : !sessionDetails ? (
+              <div className="space-y-3">
+                {[1, 2].map((i) => (
+                  <Skeleton key={i} className="h-24 w-full" />
+                ))}
+              </div>
+            ) : (
+              sessionDetails.map((session, i) => {
+                let parsed: { chiefComplaint?: string; diagnosis?: string; chief_complaint?: string } | null = null;
+                if (session.aiSummary) {
+                  try { parsed = JSON.parse(session.aiSummary); } catch { /* ignore */ }
+                }
+                const summary = parsed?.chiefComplaint ?? parsed?.chief_complaint ?? parsed?.diagnosis ?? session.aiSummary;
+                return (
+                  <div key={session._id} className="rounded-lg border p-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-sm font-medium">
+                        <Mic className="h-4 w-4 text-primary" />
+                        Session #{i + 1}
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {format(new Date(session._creationTime), "MMM d, yyyy")}
+                      </span>
+                    </div>
+                    {summary && (
+                      <p className="text-sm text-muted-foreground line-clamp-3">
+                        {summary}
+                      </p>
+                    )}
+                    {session.prescriptions && (
+                      <div className="flex items-center gap-1 text-xs text-orange-600 dark:text-orange-400">
+                        <Pill className="h-3 w-3" />
+                        Rx: {session.prescriptions}
+                      </div>
+                    )}
+                    {session.keyDecisions && session.keyDecisions.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {session.keyDecisions.map((d, j) => (
+                          <Badge key={j} variant="outline" className="text-xs">
+                            {d}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </ScrollArea>
+      </TabsContent>
+
+      <TabsContent value="reports" className="mt-4">
+        <ScrollArea className="h-[400px]">
+          <div className="space-y-3 p-1">
+            {context.reportIds.length === 0 ? (
+              <div className="py-8 text-center text-muted-foreground">
+                <FileText className="mx-auto mb-3 h-10 w-10 opacity-40" />
+                <p>No reports included.</p>
+              </div>
+            ) : !reportDetails ? (
+              <div className="space-y-3">
+                {[1, 2].map((i) => (
+                  <Skeleton key={i} className="h-24 w-full" />
+                ))}
+              </div>
+            ) : (
+              reportDetails.map((report, i) => (
+                <div key={report._id} className="rounded-lg border p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                      <FileText className="h-4 w-4 text-primary" />
+                      {report.fileName}
+                    </div>
+                    <Badge variant="outline" className="text-xs uppercase">
+                      {report.fileType}
+                    </Badge>
+                  </div>
+                  {report.aiSummary && (
+                    <p className="text-sm text-muted-foreground line-clamp-3">
+                      {report.aiSummary}
+                    </p>
+                  )}
+                  {report.criticalFlags && report.criticalFlags.length > 0 && (
+                    <div className="space-y-1">
+                      {report.criticalFlags.map((flag, j) => (
+                        <div key={j} className="flex items-center gap-1 text-xs">
+                          <AlertTriangle className={`h-3 w-3 ${
+                            flag.severity === "high" ? "text-red-500" : flag.severity === "medium" ? "text-orange-500" : "text-yellow-500"
+                          }`} />
+                          <span className="font-medium">{flag.issue}</span>
+                          <span className="text-muted-foreground">({flag.severity})</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </ScrollArea>
+      </TabsContent>
+    </Tabs>
+  );
+}
 
 export default function SharedContextPage() {
   const { user } = useUser();
@@ -246,87 +406,7 @@ export default function SharedContextPage() {
                   Patient Medical Context
                 </DialogTitle>
               </DialogHeader>
-              <Tabs defaultValue="summary" className="mt-4">
-                <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="summary">AI Summary</TabsTrigger>
-                  <TabsTrigger value="sessions">
-                    Sessions ({selectedContext.sessionIds.length})
-                  </TabsTrigger>
-                  <TabsTrigger value="reports">
-                    Reports ({selectedContext.reportIds.length})
-                  </TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="summary" className="mt-4">
-                  <ScrollArea className="h-[400px]">
-                    {selectedContext.aiConsolidatedSummary ? (
-                      <div className="space-y-4 rounded-lg bg-muted/30 p-4">
-                        <p className="whitespace-pre-wrap text-sm leading-relaxed">
-                          {selectedContext.aiConsolidatedSummary}
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="py-8 text-center text-muted-foreground">
-                        <FileText className="mx-auto mb-3 h-10 w-10 opacity-40" />
-                        <p>No AI summary available yet.</p>
-                      </div>
-                    )}
-                  </ScrollArea>
-                </TabsContent>
-
-                <TabsContent value="sessions" className="mt-4">
-                  <ScrollArea className="h-[400px]">
-                    <div className="space-y-3 p-1">
-                      {selectedContext.sessionIds.length > 0 ? (
-                        selectedContext.sessionIds.map((sessionId, i) => (
-                          <div
-                            key={sessionId}
-                            className="rounded-lg border p-4"
-                          >
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <Mic className="h-4 w-4" />
-                              Session #{i + 1}
-                            </div>
-                            <p className="mt-1 font-mono text-xs text-muted-foreground">
-                              ID: {sessionId}
-                            </p>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="py-8 text-center text-muted-foreground">
-                          <Mic className="mx-auto mb-3 h-10 w-10 opacity-40" />
-                          <p>No sessions included.</p>
-                        </div>
-                      )}
-                    </div>
-                  </ScrollArea>
-                </TabsContent>
-
-                <TabsContent value="reports" className="mt-4">
-                  <ScrollArea className="h-[400px]">
-                    <div className="space-y-3 p-1">
-                      {selectedContext.reportIds.length > 0 ? (
-                        selectedContext.reportIds.map((reportId, i) => (
-                          <div key={reportId} className="rounded-lg border p-4">
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <FileText className="h-4 w-4" />
-                              Report #{i + 1}
-                            </div>
-                            <p className="mt-1 font-mono text-xs text-muted-foreground">
-                              ID: {reportId}
-                            </p>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="py-8 text-center text-muted-foreground">
-                          <FileText className="mx-auto mb-3 h-10 w-10 opacity-40" />
-                          <p>No reports included.</p>
-                        </div>
-                      )}
-                    </div>
-                  </ScrollArea>
-                </TabsContent>
-              </Tabs>
+              <SharedContextDetail context={selectedContext} />
             </>
           )}
         </DialogContent>

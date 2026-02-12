@@ -19,8 +19,8 @@ const features = [
   },
   {
     icon: Lock,
-    title: 'End-to-End Encryption',
-    description: 'Military-grade encryption ensures all patient data remains completely secure',
+    title: 'Secure by Design',
+    description: 'Patient data is protected with modern encryption and role-based access controls',
   },
   {
     icon: Clock,
@@ -67,23 +67,6 @@ export function Features() {
               </Card>
             )
           })}
-        </div>
-
-        <div className="mt-16 p-8 rounded-2xl bg-primary/5 border border-primary/20">
-          <div className="grid md:grid-cols-3 gap-8 text-center">
-            <div>
-              <p className="text-4xl font-bold text-primary mb-2">500K+</p>
-              <p className="text-muted-foreground">Patient Records Managed</p>
-            </div>
-            <div>
-              <p className="text-4xl font-bold text-primary mb-2">10K+</p>
-              <p className="text-muted-foreground">Healthcare Professionals</p>
-            </div>
-            <div>
-              <p className="text-4xl font-bold text-primary mb-2">99.9%</p>
-              <p className="text-muted-foreground">System Uptime</p>
-            </div>
-          </div>
         </div>
       </div>
     </section>

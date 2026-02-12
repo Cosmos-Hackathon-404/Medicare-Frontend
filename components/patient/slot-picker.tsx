@@ -11,7 +11,7 @@ import {
   addDays,
   format,
   isSameDay,
-  startOfWeek,
+  startOfDay,
   getDay,
   setHours,
   setMinutes,
@@ -86,7 +86,7 @@ export function SlotPicker({
   // Disable dates that don't have available slots
   const disabledDates = (date: Date) => {
     // Disable past dates
-    if (date < startOfWeek(new Date())) return true;
+    if (date < startOfDay(new Date())) return true;
 
     // Disable dates more than 30 days out
     if (date > addDays(new Date(), 30)) return true;

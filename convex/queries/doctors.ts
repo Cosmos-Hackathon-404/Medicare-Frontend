@@ -39,6 +39,18 @@ export const getById = query({
   },
 });
 
+export const getByClerkId = query({
+  args: { clerkUserId: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("doctorProfiles")
+      .withIndex("by_clerkUserId", (q) =>
+        q.eq("clerkUserId", args.clerkUserId)
+      )
+      .first();
+  },
+});
+
 export const getAvailableSlots = query({
   args: { doctorId: v.id("doctorProfiles") },
   handler: async (ctx, args) => {

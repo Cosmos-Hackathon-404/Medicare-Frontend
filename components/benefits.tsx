@@ -4,9 +4,8 @@ import { TrendingUp, Award, Heart } from 'lucide-react'
 const benefits = [
   {
     icon: TrendingUp,
-    title: 'Increase Productivity',
-    stat: '80%',
-    description: 'Reduce documentation time and focus on patient care',
+    title: 'Save Time on Documentation',
+    description: 'AI automatically generates clinical notes from recorded sessions',
     items: [
       'Automated clinical note generation',
       'Streamlined workflow automation',
@@ -15,9 +14,8 @@ const benefits = [
   },
   {
     icon: Award,
-    title: 'Better Accuracy',
-    stat: '99.2%',
-    description: 'AI-powered insights ensure accurate clinical decisions',
+    title: 'AI-Powered Insights',
+    description: 'Get intelligent suggestions for more informed clinical decisions',
     items: [
       'Contextual treatment suggestions',
       'Drug interaction warnings',
@@ -26,9 +24,8 @@ const benefits = [
   },
   {
     icon: Heart,
-    title: 'Improved Care Quality',
-    stat: '45%',
-    description: 'Better patient outcomes through comprehensive records',
+    title: 'Better Patient Experience',
+    description: 'Complete medical history follows the patient between doctors',
     items: [
       'Complete patient history access',
       'Continuity of care assurance',
@@ -43,10 +40,10 @@ export function Benefits() {
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-16">
           <h2 className="text-4xl font-bold text-foreground mb-4">
-            Proven Results
+            Why Medicare AI
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Healthcare institutions see significant improvements in efficiency and patient care with Medicare AI.
+            Built for healthcare professionals who want to spend more time on patients and less on paperwork.
           </p>
         </div>
 
@@ -54,7 +51,7 @@ export function Benefits() {
           {benefits.map((benefit, index) => {
             const Icon = benefit.icon
             return (
-              <Card key={index} className="p-6 border border-border overflow-hidden group hover:border-primary/50 transition">
+              <Card key={index} className="relative p-6 border border-border overflow-hidden group hover:border-primary/50 transition">
                 <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full blur-xl group-hover:bg-primary/10 transition -z-0"></div>
                 
                 <div className="relative z-10">
@@ -62,14 +59,10 @@ export function Benefits() {
                     <Icon className="w-8 h-8 text-primary" />
                   </div>
 
-                  <div className="mb-4">
-                    <p className="text-4xl font-bold text-primary">{benefit.stat}</p>
-                    <p className="text-sm text-muted-foreground mt-1">{benefit.description}</p>
-                  </div>
-
-                  <h3 className="text-xl font-semibold text-foreground mb-4">
+                  <h3 className="text-xl font-semibold text-foreground mb-2">
                     {benefit.title}
                   </h3>
+                  <p className="text-sm text-muted-foreground mb-4">{benefit.description}</p>
 
                   <ul className="space-y-2">
                     {benefit.items.map((item, i) => (
@@ -109,23 +102,23 @@ export function Benefits() {
           </Card>
 
           <Card className="p-8 border border-border bg-primary/5">
-            <h3 className="text-xl font-semibold text-foreground mb-4">Security & Compliance</h3>
+            <h3 className="text-xl font-semibold text-foreground mb-4">Security & Privacy</h3>
             <ul className="space-y-3">
               <li className="flex gap-3">
                 <span className="text-primary text-xl leading-none">•</span>
-                <span className="text-muted-foreground">HIPAA compliant with BAA agreements</span>
+                <span className="text-muted-foreground">Role-based access control for doctors and patients</span>
               </li>
               <li className="flex gap-3">
                 <span className="text-primary text-xl leading-none">•</span>
-                <span className="text-muted-foreground">SOC 2 Type II certified infrastructure</span>
+                <span className="text-muted-foreground">Secure authentication via Clerk</span>
               </li>
               <li className="flex gap-3">
                 <span className="text-primary text-xl leading-none">•</span>
-                <span className="text-muted-foreground">End-to-end encryption for all data</span>
+                <span className="text-muted-foreground">Patient-controlled data sharing</span>
               </li>
               <li className="flex gap-3">
                 <span className="text-primary text-xl leading-none">•</span>
-                <span className="text-muted-foreground">Regular security audits and penetration testing</span>
+                <span className="text-muted-foreground">Encrypted data storage with Convex</span>
               </li>
             </ul>
           </Card>

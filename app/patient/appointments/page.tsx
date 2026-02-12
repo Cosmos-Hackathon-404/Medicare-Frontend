@@ -255,7 +255,7 @@ function AppointmentCard({
   showCancel,
   onCancel,
 }: {
-  appointment: Appointment;
+  appointment: Appointment & { doctorName?: string; doctorSpecialization?: string };
   showCancel?: boolean;
   onCancel?: () => void;
 }) {
@@ -280,9 +280,12 @@ function AppointmentCard({
             </span>
           </div>
           <div>
-            <p className="font-semibold">{format(dateTime, "EEEE")}</p>
+            <p className="font-semibold">Dr. {appointment.doctorName ?? "Doctor"}</p>
+            {appointment.doctorSpecialization && (
+              <p className="text-xs text-muted-foreground">{appointment.doctorSpecialization}</p>
+            )}
             <p className="text-sm text-muted-foreground">
-              {format(dateTime, "h:mm a")}
+              {format(dateTime, "EEEE")} at {format(dateTime, "h:mm a")}
             </p>
             {appointment.notes && (
               <p className="mt-1 text-sm text-muted-foreground">

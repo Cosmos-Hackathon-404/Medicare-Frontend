@@ -9,6 +9,7 @@ export const create = mutation({
     doctorClerkId: v.string(),
     dateTime: v.string(),
     notes: v.optional(v.string()),
+    sharedReportIds: v.optional(v.array(v.id("reports"))),
   },
   handler: async (ctx, args) => {
     return await ctx.db.insert("appointments", {

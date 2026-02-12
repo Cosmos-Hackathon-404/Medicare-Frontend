@@ -27,12 +27,20 @@ export function AISummaryCard({
   isLoading,
   className,
 }: AISummaryCardProps) {
-  // Handle string summary (raw AI output)
+  // Handle string summary (raw AI output), normalizing snake_case to camelCase
   const parsedSummary: AISummary | null =
     typeof summary === "string"
       ? (() => {
           try {
-            return JSON.parse(summary);
+            const raw = JSON.parse(summary);
+            return {
+              chiefComplaint: raw.chiefComplaint ?? raw.chief_complaint,
+              diagnosis: raw.diagnosis,
+              prescriptions: raw.prescriptions,
+              followUpActions: raw.followUpActions ?? raw.follow_up_actions,
+              keyDecisions: raw.keyDecisions ?? raw.key_decisions,
+              comparisonWithPrevious: raw.comparisonWithPrevious ?? raw.comparison_with_previous,
+            };
           } catch {
             return { chiefComplaint: summary };
           }

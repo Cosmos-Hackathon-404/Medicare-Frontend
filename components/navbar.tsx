@@ -4,11 +4,14 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Menu, X } from 'lucide-react'
 import Link from 'next/link'
-import { SignedIn, SignedOut, UserButton } from '@clerk/nextjs'
+import { SignedIn, SignedOut, UserButton, useUser } from '@clerk/nextjs'
 import { ThemeToggle } from '@/components/shared/theme-toggle'
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
+  const { user } = useUser()
+  const role = (user?.publicMetadata?.role as string) || null
+  const dashboardHref = role ? `/${role}/dashboard` : '/onboarding'
 
   return (
     <nav className="fixed w-full top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
@@ -26,11 +29,11 @@ export function Navbar() {
             <a href="#features" className="text-muted-foreground hover:text-foreground text-sm transition">
               Features
             </a>
-            <a href="#benefits" className="text-muted-foreground hover:text-foreground text-sm transition">
+            <a href="#team" className="text-muted-foreground hover:text-foreground text-sm transition">
               How It Works
             </a>
-            <a href="#team" className="text-muted-foreground hover:text-foreground text-sm transition">
-              Team
+            <a href="#benefits" className="text-muted-foreground hover:text-foreground text-sm transition">
+              Why Medicare AI
             </a>
           </div>
 
@@ -47,7 +50,7 @@ export function Navbar() {
             </SignedOut>
             <SignedIn>
               <Button variant="outline" size="sm" asChild>
-                <Link href="/onboarding">Dashboard</Link>
+                <Link href={dashboardHref}>Dashboard</Link>
               </Button>
               <UserButton />
             </SignedIn>
@@ -71,11 +74,11 @@ export function Navbar() {
             <a href="#features" className="block py-2 text-muted-foreground hover:text-foreground">
               Features
             </a>
-            <a href="#benefits" className="block py-2 text-muted-foreground hover:text-foreground">
+            <a href="#team" className="block py-2 text-muted-foreground hover:text-foreground">
               How It Works
             </a>
-            <a href="#team" className="block py-2 text-muted-foreground hover:text-foreground mb-4">
-              Team
+            <a href="#benefits" className="block py-2 text-muted-foreground hover:text-foreground mb-4">
+              Why Medicare AI
             </a>
             <div className="flex flex-col gap-2">
               <SignedOut>
@@ -88,7 +91,7 @@ export function Navbar() {
               </SignedOut>
               <SignedIn>
                 <Button size="sm" asChild className="w-full">
-                  <Link href="/onboarding">Dashboard</Link>
+                  <Link href={dashboardHref}>Dashboard</Link>
                 </Button>
               </SignedIn>
             </div>
