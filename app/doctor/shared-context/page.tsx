@@ -19,6 +19,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ReportViewerDialog } from "@/components/shared/report-viewer-dialog";
 import {
   Inbox,
   Eye,
@@ -33,10 +34,109 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import type { SharedContext } from "@/types";
+import type { Report, SharedContext, SharedContextSummary } from "@/types";
+
+function parseSharedSummary(
+  rawSummary?: string
+): SharedContextSummary | null {
+  if (!rawSummary) return null;
+  try {
+    const parsed = JSON.parse(rawSummary) as
+      | {
+          patient_overview?: string;
+          chronological_summary?: string;
+          active_conditions?: string[];
+          current_medications?: string[];
+          allergies?: string[];
+          critical_alerts?: string[];
+          recommended_follow_ups?: string[];
+          patientOverview?: string;
+          chronologicalSummary?: string;
+          activeConditions?: string[];
+          currentMedications?: string[];
+          criticalAlerts?: string[];
+          recommendedFollowUps?: string[];
+        }
+      | null;
+
+    if (!parsed || typeof parsed !== "object") return null;
+
+    return {
+      patientOverview: parsed.patientOverview ?? parsed.patient_overview ?? "",
+      chronologicalSummary:
+        parsed.chronologicalSummary ?? parsed.chronological_summary ?? "",
+      activeConditions: parsed.activeConditions ?? parsed.active_conditions ?? [],
+      currentMedications:
+        parsed.currentMedications ?? parsed.current_medications ?? [],
+      allergies: parsed.allergies ?? [],
+      criticalAlerts: parsed.criticalAlerts ?? parsed.critical_alerts ?? [],
+      recommendedFollowUps:
+        parsed.recommendedFollowUps ?? parsed.recommended_follow_ups ?? [],
+    };
+  } catch {
+    return null;
+  }
+}
+
+function parsePrescriptionText(raw?: string): string {
+  if (!raw) return "";
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return raw;
+
+    return parsed
+      .map((entry) => {
+        if (!entry || typeof entry !== "object") return "";
+        const medication =
+          "medication" in entry && typeof entry.medication === "string"
+            ? entry.medication
+            : "Medication";
+        const dosage =
+          "dosage" in entry && typeof entry.dosage === "string"
+            ? entry.dosage
+            : "";
+        const frequency =
+          "frequency" in entry && typeof entry.frequency === "string"
+            ? entry.frequency
+            : "";
+
+        return [medication, dosage, frequency].filter(Boolean).join(" • ");
+      })
+      .filter(Boolean)
+      .join("; ");
+  } catch {
+    return raw;
+  }
+}
+
+function SummarySection({
+  title,
+  items,
+}: {
+  title: string;
+  items: string[];
+}) {
+  if (items.length === 0) return null;
+
+  return (
+    <div className="space-y-2">
+      <h4 className="text-sm font-semibold">{title}</h4>
+      <ul className="space-y-1 text-sm text-muted-foreground">
+        {items.map((item, index) => (
+          <li key={`${title}-${index}`} className="flex items-start gap-2">
+            <span className="mt-1 h-1.5 w-1.5 rounded-full bg-primary/70" />
+            <span>{item}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
 
 // Sub-component that fetches and displays session/report details
 function SharedContextDetail({ context }: { context: SharedContext }) {
+  const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+
   const sessionDetails = useQuery(
     api.queries.sessions.getByIds,
     context.sessionIds.length > 0
@@ -64,13 +164,59 @@ function SharedContextDetail({ context }: { context: SharedContext }) {
 
       <TabsContent value="summary" className="mt-4">
         <ScrollArea className="h-[400px]">
-          {context.aiConsolidatedSummary ? (
-            <div className="space-y-4 rounded-lg bg-muted/30 p-4">
-              <p className="whitespace-pre-wrap text-sm leading-relaxed">
-                {context.aiConsolidatedSummary}
-              </p>
-            </div>
-          ) : (
+          {context.aiConsolidatedSummary ? (() => {
+            const parsedSummary = parseSharedSummary(context.aiConsolidatedSummary);
+
+            if (!parsedSummary) {
+              return (
+                <div className="space-y-4 rounded-lg bg-muted/30 p-4">
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed">
+                    {context.aiConsolidatedSummary}
+                  </p>
+                </div>
+              );
+            }
+
+            return (
+              <div className="space-y-4 rounded-lg bg-muted/30 p-4">
+                {parsedSummary.patientOverview && (
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-semibold">Patient Overview</h4>
+                    <p className="text-sm leading-relaxed text-muted-foreground">
+                      {parsedSummary.patientOverview}
+                    </p>
+                  </div>
+                )}
+
+                {parsedSummary.chronologicalSummary && (
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-semibold">Chronological Summary</h4>
+                    <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">
+                      {parsedSummary.chronologicalSummary}
+                    </p>
+                  </div>
+                )}
+
+                <SummarySection
+                  title="Active Conditions"
+                  items={parsedSummary.activeConditions}
+                />
+                <SummarySection
+                  title="Current Medications"
+                  items={parsedSummary.currentMedications}
+                />
+                <SummarySection title="Allergies" items={parsedSummary.allergies} />
+                <SummarySection
+                  title="Critical Alerts"
+                  items={parsedSummary.criticalAlerts}
+                />
+                <SummarySection
+                  title="Recommended Follow-Ups"
+                  items={parsedSummary.recommendedFollowUps}
+                />
+              </div>
+            );
+          })() : (
             <div className="py-8 text-center text-muted-foreground">
               <FileText className="mx-auto mb-3 h-10 w-10 opacity-40" />
               <p>No AI summary available yet.</p>
@@ -120,7 +266,7 @@ function SharedContextDetail({ context }: { context: SharedContext }) {
                     {session.prescriptions && (
                       <div className="flex items-center gap-1 text-xs text-orange-600 dark:text-orange-400">
                         <Pill className="h-3 w-3" />
-                        Rx: {session.prescriptions}
+                        Rx: {parsePrescriptionText(session.prescriptions)}
                       </div>
                     )}
                     {session.keyDecisions && session.keyDecisions.length > 0 && (
@@ -164,9 +310,20 @@ function SharedContextDetail({ context }: { context: SharedContext }) {
                       <FileText className="h-4 w-4 text-primary" />
                       {report.fileName}
                     </div>
-                    <Badge variant="outline" className="text-xs uppercase">
-                      {report.fileType}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-xs uppercase">
+                        {report.fileType}
+                      </Badge>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 gap-1"
+                        onClick={() => setSelectedReport(report as Report)}
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        View File
+                      </Button>
+                    </div>
                   </div>
                   {report.aiSummary && (
                     <p className="text-sm text-muted-foreground line-clamp-3">
@@ -193,6 +350,12 @@ function SharedContextDetail({ context }: { context: SharedContext }) {
           </div>
         </ScrollArea>
       </TabsContent>
+
+      <ReportViewerDialog
+        report={selectedReport}
+        open={!!selectedReport}
+        onOpenChange={(open) => !open && setSelectedReport(null)}
+      />
     </Tabs>
   );
 }

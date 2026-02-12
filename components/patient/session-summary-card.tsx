@@ -30,7 +30,7 @@ export function SessionSummaryCard({
   let parsedSummary: {
     chiefComplaint?: string;
     diagnosis?: string;
-    prescriptions?: string;
+    prescriptions?: string | Array<Record<string, string>>;
     followUpActions?: string[];
     keyDecisions?: string[];
   } | null = null;
@@ -112,9 +112,39 @@ export function SessionSummaryCard({
                     Prescriptions
                   </h4>
                   <div className="rounded-lg border border-orange-500/20 bg-orange-500/5 p-3">
-                    <pre className="whitespace-pre-wrap font-mono text-sm">
-                      {parsedSummary?.prescriptions || session.prescriptions}
-                    </pre>
+                    {(() => {
+                      const rx = parsedSummary?.prescriptions || session.prescriptions;
+                      if (!rx) return null;
+                      if (typeof rx === "string") {
+                        return <pre className="whitespace-pre-wrap font-mono text-sm">{rx}</pre>;
+                      }
+                      if (Array.isArray(rx)) {
+                        return (
+                          <ul className="space-y-2">
+                            {rx.map((item, i) => (
+                              <li key={i} className="text-sm space-y-0.5">
+                                <span className="font-medium">{item.medication || item.name}</span>
+                                {item.dosage && <span className="text-muted-foreground"> — {item.dosage}</span>}
+                                {item.frequency && <span className="text-muted-foreground"> · {item.frequency}</span>}
+                                {item.duration && <span className="text-muted-foreground"> · {item.duration}</span>}
+                                {item.instructions && <p className="text-xs text-muted-foreground mt-0.5">{item.instructions}</p>}
+                              </li>
+                            ))}
+                          </ul>
+                        );
+                      }
+                      // Single object
+                      const obj = rx as Record<string, string>;
+                      return (
+                        <div className="text-sm space-y-0.5">
+                          <span className="font-medium">{obj.medication || obj.name}</span>
+                          {obj.dosage && <span className="text-muted-foreground"> — {obj.dosage}</span>}
+                          {obj.frequency && <span className="text-muted-foreground"> · {obj.frequency}</span>}
+                          {obj.duration && <span className="text-muted-foreground"> · {obj.duration}</span>}
+                          {obj.instructions && <p className="text-xs text-muted-foreground mt-0.5">{obj.instructions}</p>}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               </>

@@ -399,10 +399,10 @@ function AppointmentRow({ appointment }: { appointment: Appointment & { patientN
           {isScheduled ? (
             <>
               {appointment.type === "online" && (
-                <Link href={`/doctor/appointments/${appointment._id}/video`}>
+                <Link href={`/session/join/${appointment._id}`}>
                   <Button size="sm" className="gap-1 bg-blue-600 hover:bg-blue-700">
                     <Video className="h-3 w-3" />
-                    Join Call
+                    Join Session
                   </Button>
                 </Link>
               )}
@@ -544,10 +544,10 @@ function MobileAppointmentCard({ appointment }: { appointment: Appointment & { p
       )}
       <div className="flex gap-2">
         {isScheduled && appointment.type === "online" && (
-          <Link href={`/doctor/appointments/${appointment._id}/video`} className="flex-1">
+          <Link href={`/session/join/${appointment._id}`} className="flex-1">
             <Button size="sm" className="w-full gap-1 bg-blue-600 hover:bg-blue-700">
               <Video className="h-3 w-3" />
-              Join Call
+              Join Session
             </Button>
           </Link>
         )}

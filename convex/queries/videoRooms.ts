@@ -65,3 +65,86 @@ export const getActiveForPatient = query({
     return rooms.filter((r) => r.status !== "ended");
   },
 });
+
+// Get room with full participant details for the session page
+export const getRoomWithParticipants = query({
+  args: { roomId: v.string() },
+  handler: async (ctx, args) => {
+    const room = await ctx.db
+      .query("videoRooms")
+      .withIndex("by_roomId", (q) => q.eq("roomId", args.roomId))
+      .first();
+
+    if (!room) return null;
+
+    const appointment = await ctx.db.get(room.appointmentId);
+
+    const doctor = await ctx.db
+      .query("doctorProfiles")
+      .withIndex("by_clerkUserId", (q) =>
+        q.eq("clerkUserId", room.doctorClerkId)
+      )
+      .first();
+
+    const patient = await ctx.db
+      .query("patientProfiles")
+      .withIndex("by_clerkUserId", (q) =>
+        q.eq("clerkUserId", room.patientClerkId)
+      )
+      .first();
+
+    return {
+      ...room,
+      appointment,
+      doctorName: doctor?.name ?? "Doctor",
+      doctorSpecialization: doctor?.specialization ?? "",
+      patientName: patient?.name ?? "Patient",
+      patientAge: patient?.age,
+      patientAllergies: patient?.allergies,
+    };
+  },
+});
+
+// Get session summary for a completed room
+export const getSessionForRoom = query({
+  args: { roomId: v.string() },
+  handler: async (ctx, args) => {
+    const room = await ctx.db
+      .query("videoRooms")
+      .withIndex("by_roomId", (q) => q.eq("roomId", args.roomId))
+      .first();
+
+    if (!room) return null;
+
+    const session = await ctx.db
+      .query("sessions")
+      .withIndex("by_appointmentId", (q) =>
+        q.eq("appointmentId", room.appointmentId)
+      )
+      .first();
+
+    if (!session) return null;
+
+    const doctor = await ctx.db
+      .query("doctorProfiles")
+      .withIndex("by_clerkUserId", (q) =>
+        q.eq("clerkUserId", room.doctorClerkId)
+      )
+      .first();
+
+    const patient = await ctx.db
+      .query("patientProfiles")
+      .withIndex("by_clerkUserId", (q) =>
+        q.eq("clerkUserId", room.patientClerkId)
+      )
+      .first();
+
+    return {
+      ...session,
+      room,
+      doctorName: doctor?.name ?? "Doctor",
+      doctorSpecialization: doctor?.specialization ?? "",
+      patientName: patient?.name ?? "Patient",
+    };
+  },
+});

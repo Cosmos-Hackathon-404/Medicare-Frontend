@@ -26,6 +26,8 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { format, isToday, isYesterday } from "date-fns";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -573,11 +575,14 @@ export function ReportPicker({
               {filteredReports.map((report) => {
                 const isSelected = selectedReportIds.includes(report._id);
                 return (
-                  <button
+                  <div
                     key={report._id}
+                    role="button"
+                    tabIndex={0}
                     onClick={() => toggleReport(report._id)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleReport(report._id); } }}
                     className={cn(
-                      "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-muted/80",
+                      "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-muted/80 cursor-pointer",
                       isSelected && "bg-primary/5"
                     )}
                   >
@@ -606,7 +611,7 @@ export function ReportPicker({
                         ✓
                       </Badge>
                     )}
-                  </button>
+                  </div>
                 );
               })}
             </div>
@@ -754,6 +759,10 @@ export function AIChatWindow({
 }: AIChatWindowProps) {
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [pendingResponse, setPendingResponse] = useState<{
+    conversationId: string;
+    sentAt: number;
+  } | null>(null);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -825,6 +834,21 @@ export function AIChatWindow({
     }
   }, [messages, isLoading]);
 
+  // Keep "thinking" state active until assistant response actually appears in the conversation
+  useEffect(() => {
+    if (!isLoading || !pendingResponse || !messages) return;
+    if (activeConversationId !== pendingResponse.conversationId) return;
+
+    const hasAssistantReply = messages.some(
+      (msg) => msg.role === "assistant" && msg._creationTime >= pendingResponse.sentAt - 5000
+    );
+
+    if (hasAssistantReply) {
+      setIsLoading(false);
+      setPendingResponse(null);
+    }
+  }, [messages, isLoading, pendingResponse, activeConversationId]);
+
   // Auto-resize textarea
   useEffect(() => {
     if (textareaRef.current) {
@@ -861,6 +885,8 @@ export function AIChatWindow({
 
     setMessage("");
     if (textareaRef.current) textareaRef.current.style.height = "auto";
+    const sentAt = Date.now();
+    setPendingResponse({ conversationId: convId, sentAt });
     setIsLoading(true);
 
     try {
@@ -876,9 +902,9 @@ export function AIChatWindow({
       });
     } catch (error) {
       console.error("AI chat error:", error);
-      toast.error("Failed to send message. Please try again.");
-    } finally {
+      setPendingResponse(null);
       setIsLoading(false);
+      toast.error("Failed to send message. Please try again.");
     }
   };
 
@@ -989,9 +1015,17 @@ export function AIChatWindow({
                                 : "bg-muted/60 border border-border/50 rounded-bl-md"
                             )}
                           >
-                            <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
-                              {msg.content}
-                            </p>
+                            {isUser ? (
+                              <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
+                                {msg.content}
+                              </p>
+                            ) : (
+                              <div className="prose prose-sm dark:prose-invert max-w-none break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 prose-p:leading-relaxed prose-p:my-1.5 prose-headings:my-2 prose-headings:font-semibold prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-strong:text-foreground prose-strong:font-semibold prose-code:text-xs prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:before:content-none prose-code:after:content-none prose-pre:bg-muted prose-pre:rounded-lg prose-pre:p-3 prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-blockquote:border-l-primary/50 prose-blockquote:text-muted-foreground prose-table:text-xs prose-th:px-2 prose-th:py-1 prose-td:px-2 prose-td:py-1 prose-hr:my-3">
+                                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                  {msg.content}
+                                </ReactMarkdown>
+                              </div>
+                            )}
                           </div>
                           <p
                             className={cn(
@@ -1010,19 +1044,19 @@ export function AIChatWindow({
             ))
           )}
           {isLoading && (
-            <div className="flex items-end gap-2.5 justify-start">
-              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 mb-5">
+            <div className="flex items-end gap-2.5 justify-start animate-in fade-in-0 slide-in-from-bottom-2 duration-300">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 mb-5 animate-pulse">
                 <Sparkles className="h-3.5 w-3.5 text-white" />
               </div>
-              <div className="rounded-2xl bg-muted/60 border border-border/50 rounded-bl-md px-4 py-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="flex gap-1">
-                    <span className="h-2 w-2 rounded-full bg-emerald-500/60 animate-bounce [animation-delay:-0.3s]" />
-                    <span className="h-2 w-2 rounded-full bg-emerald-500/60 animate-bounce [animation-delay:-0.15s]" />
-                    <span className="h-2 w-2 rounded-full bg-emerald-500/60 animate-bounce" />
+              <div className="rounded-2xl bg-muted/60 border border-border/50 rounded-bl-md px-4 py-3.5 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500 animate-[pulse_1.4s_ease-in-out_infinite]" />
+                    <span className="h-2 w-2 rounded-full bg-emerald-500 animate-[pulse_1.4s_ease-in-out_0.2s_infinite]" />
+                    <span className="h-2 w-2 rounded-full bg-emerald-500 animate-[pulse_1.4s_ease-in-out_0.4s_infinite]" />
                   </div>
-                  <span className="text-sm text-muted-foreground">
-                    Thinking...
+                  <span className="text-sm text-muted-foreground font-medium">
+                    Analyzing and generating response<span className="inline-flex w-[18px]"><span className="animate-[ellipsis_1.5s_steps(4,end)_infinite] overflow-hidden whitespace-nowrap inline-block w-0" style={{ animationFillMode: 'forwards' }}>...</span></span>
                   </span>
                 </div>
               </div>

@@ -359,10 +359,10 @@ function AppointmentCard({
             </AlertDialog>
           )}
           {showCancel && appointment.type === "online" && appointment.status === "scheduled" && (
-            <Link href={`/patient/appointments/${appointment._id}/video`}>
+            <Link href={`/session/join/${appointment._id}`}>
               <Button size="sm" className="gap-1 bg-blue-600 hover:bg-blue-700">
                 <Video className="h-3 w-3" />
-                Join Call
+                Join Session
               </Button>
             </Link>
           )}

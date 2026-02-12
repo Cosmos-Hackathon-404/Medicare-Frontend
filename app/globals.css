@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -162,4 +163,12 @@
 .animate-empty-fade-in-delay {
   opacity: 0;
   animation: empty-fade-in 0.5s ease-out 0.15s forwards;
+}
+
+@keyframes ellipsis {
+  0% { width: 0; }
+  25% { width: 6px; }
+  50% { width: 12px; }
+  75% { width: 18px; }
+  100% { width: 18px; }
 }

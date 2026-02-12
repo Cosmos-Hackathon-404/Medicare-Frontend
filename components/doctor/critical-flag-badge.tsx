@@ -72,7 +72,7 @@ export function CriticalFlagBadge({
     return (
       <div
         className={cn(
-          "flex items-start gap-3 rounded-lg border p-3",
+          "flex flex-col gap-2 rounded-lg border p-3",
           config.bgClass
         )}
       >

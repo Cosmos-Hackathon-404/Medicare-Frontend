@@ -1,5 +1,52 @@
 import { mutation } from "../_generated/server";
 import { v } from "convex/values";
+import { api } from "../_generated/api";
+
+// Reset an ended room back to "waiting" so participants can rejoin
+export const rejoinRoom = mutation({
+  args: {
+    roomId: v.string(),
+    clerkUserId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const videoRoom = await ctx.db
+      .query("videoRooms")
+      .withIndex("by_roomId", (q) => q.eq("roomId", args.roomId))
+      .first();
+
+    if (!videoRoom) throw new Error("Video room not found");
+
+    // Only a participant can reset the room
+    if (
+      videoRoom.doctorClerkId !== args.clerkUserId &&
+      videoRoom.patientClerkId !== args.clerkUserId
+    ) {
+      throw new Error("Not authorized");
+    }
+
+    // Only reset if currently ended
+    if (videoRoom.status !== "ended") return videoRoom;
+
+    await ctx.db.patch(videoRoom._id, {
+      status: "waiting",
+      doctorJoinedAt: undefined,
+      patientJoinedAt: undefined,
+      endedAt: undefined,
+      duration: undefined,
+    });
+
+    // Clear stale signals
+    const signals = await ctx.db
+      .query("videoRoomSignals")
+      .withIndex("by_roomId", (q) => q.eq("roomId", videoRoom.roomId))
+      .collect();
+    for (const signal of signals) {
+      await ctx.db.delete(signal._id);
+    }
+
+    return { ...videoRoom, status: "waiting" };
+  },
+});
 
 export const joinRoom = mutation({
   args: {
@@ -113,5 +160,82 @@ export const clearSignals = mutation({
     for (const signal of signals) {
       await ctx.db.delete(signal._id);
     }
+  },
+});
+
+// End room + upload audio + create session + trigger AI summarization
+export const endRoomWithSession = mutation({
+  args: {
+    appointmentId: v.id("appointments"),
+    audioStorageId: v.optional(v.id("_storage")),
+  },
+  handler: async (ctx, args) => {
+    const videoRoom = await ctx.db
+      .query("videoRooms")
+      .withIndex("by_appointmentId", (q) =>
+        q.eq("appointmentId", args.appointmentId)
+      )
+      .first();
+
+    if (!videoRoom) {
+      throw new Error("Video room not found");
+    }
+
+    // Calculate duration
+    const now = new Date().toISOString();
+    let duration: number | undefined;
+    if (videoRoom.doctorJoinedAt && videoRoom.patientJoinedAt) {
+      const startTime = new Date(
+        Math.max(
+          new Date(videoRoom.doctorJoinedAt).getTime(),
+          new Date(videoRoom.patientJoinedAt).getTime()
+        )
+      );
+      duration = Math.round((Date.now() - startTime.getTime()) / 1000);
+    }
+
+    // End the video room
+    await ctx.db.patch(videoRoom._id, {
+      status: "ended",
+      endedAt: now,
+      ...(duration !== undefined ? { duration } : {}),
+    });
+
+    // Clear signals
+    const signals = await ctx.db
+      .query("videoRoomSignals")
+      .withIndex("by_roomId", (q) => q.eq("roomId", videoRoom.roomId))
+      .collect();
+    for (const signal of signals) {
+      await ctx.db.delete(signal._id);
+    }
+
+    // If audio was recorded, create session and trigger AI summarization
+    if (args.audioStorageId) {
+      const sessionId = await ctx.db.insert("sessions", {
+        appointmentId: args.appointmentId,
+        patientClerkId: videoRoom.patientClerkId,
+        doctorClerkId: videoRoom.doctorClerkId,
+        audioStorageId: args.audioStorageId,
+        processingStatus: "processing",
+      });
+
+      // Schedule AI summarization in background
+      await ctx.scheduler.runAfter(
+        0,
+        api.actions.summarizeSession.summarizeSession,
+        {
+          sessionId,
+          appointmentId: args.appointmentId,
+          audioStorageId: args.audioStorageId,
+          patientClerkId: videoRoom.patientClerkId,
+          doctorClerkId: videoRoom.doctorClerkId,
+        }
+      );
+
+      return { duration, sessionId, roomId: videoRoom.roomId };
+    }
+
+    return { duration, sessionId: null, roomId: videoRoom.roomId };
   },
 });

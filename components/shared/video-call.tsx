@@ -778,12 +778,19 @@ export function PreCallCheck({
   const streamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+
     const checkPermissions = async () => {
+      // Try both video + audio together first
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: true,
           audio: true,
         });
+        if (cancelled) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
 
         streamRef.current = stream;
         if (previewRef.current) {
@@ -792,22 +799,42 @@ export function PreCallCheck({
 
         setVideoPermission(true);
         setAudioPermission(true);
+        setIsChecking(false);
+        return;
       } catch {
-        // Try individually
-        try {
-          await navigator.mediaDevices.getUserMedia({ video: true });
-          setVideoPermission(true);
-        } catch {
-          setVideoPermission(false);
-        }
+        // Combined request failed — check individually below
+      }
 
-        try {
-          await navigator.mediaDevices.getUserMedia({ audio: true });
-          setAudioPermission(true);
-        } catch {
-          setAudioPermission(false);
+      // Check video separately
+      try {
+        const vidStream = await navigator.mediaDevices.getUserMedia({ video: true });
+        if (cancelled) {
+          vidStream.getTracks().forEach((t) => t.stop());
+          return;
         }
-      } finally {
+        streamRef.current = vidStream;
+        if (previewRef.current) {
+          previewRef.current.srcObject = vidStream;
+        }
+        setVideoPermission(true);
+      } catch {
+        setVideoPermission(false);
+      }
+
+      // Check audio separately
+      try {
+        const audStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        if (cancelled) {
+          audStream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        audStream.getTracks().forEach((t) => t.stop());
+        setAudioPermission(true);
+      } catch {
+        setAudioPermission(false);
+      }
+
+      if (!cancelled) {
         setIsChecking(false);
       }
     };
@@ -815,11 +842,13 @@ export function PreCallCheck({
     checkPermissions();
 
     return () => {
+      cancelled = true;
       streamRef.current?.getTracks().forEach((track) => track.stop());
     };
   }, []);
 
-  const allReady = videoPermission === true && audioPermission === true;
+  // Only microphone is required; camera is optional for audio-only sessions
+  const canJoin = audioPermission === true;
 
   return (
     <Card className="max-w-lg mx-auto">
@@ -866,6 +895,11 @@ export function PreCallCheck({
               <Badge variant="destructive">Not Available</Badge>
             )}
           </div>
+          {!isChecking && !videoPermission && (
+            <p className="text-xs text-amber-600 dark:text-amber-400 px-1">
+              Camera not found — you can still join in audio-only mode.
+            </p>
+          )}
 
           <div className="flex items-center justify-between rounded-lg border p-3">
             <div className="flex items-center gap-2">
@@ -882,6 +916,11 @@ export function PreCallCheck({
               <Badge variant="destructive">Not Available</Badge>
             )}
           </div>
+          {!isChecking && !audioPermission && (
+            <p className="text-xs text-red-600 dark:text-red-400 px-1">
+              Microphone is required. Please allow mic access and refresh.
+            </p>
+          )}
 
           <div className="flex items-center justify-between rounded-lg border p-3">
             <div className="flex items-center gap-2">
@@ -904,7 +943,7 @@ export function PreCallCheck({
               streamRef.current?.getTracks().forEach((track) => track.stop());
               onReady();
             }}
-            disabled={!allReady && !isChecking}
+            disabled={!canJoin && !isChecking}
             className="flex-1 gap-2"
           >
             {isChecking ? (
