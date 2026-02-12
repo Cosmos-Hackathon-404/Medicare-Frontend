@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation } from "convex/react";
+import { useUser, SignInButton } from "@clerk/nextjs";
 import { api } from "@/convex/_generated/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,30 +17,36 @@ import {
   BadgeCheck,
   AlertTriangle,
   Lock,
+  LogIn,
 } from "lucide-react";
 
-const ADMIN_PASSKEY = "medicare404";
+// Only these team members can access the admin panel
+const ADMIN_EMAILS = [
+  "abinashyadav3.141@gmail.com",
+  "dikeshmanandhar15@gmail.com",
+  "pranaytuladhar101@gmail.com",
+  "prithaklamsal24@gmail.com",
+];
 
 export default function AdminPage() {
-  const [authenticated, setAuthenticated] = useState(false);
-  const [passkey, setPasskey] = useState("");
-  const [passkeyError, setPasskeyError] = useState(false);
+  const { user, isLoaded } = useUser();
   const [searchTerm, setSearchTerm] = useState("");
 
   const allDoctors = useQuery(api.queries.doctors.getAll);
   const setVerified = useMutation(api.mutations.admin.setDoctorVerified);
   const deleteDoctor = useMutation(api.mutations.admin.deleteDoctorProfile);
 
-  const handleLogin = () => {
-    if (passkey === ADMIN_PASSKEY) {
-      setAuthenticated(true);
-      setPasskeyError(false);
-    } else {
-      setPasskeyError(true);
-    }
-  };
+  // Loading state
+  if (!isLoaded) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="animate-pulse text-muted-foreground">Loading...</div>
+      </div>
+    );
+  }
 
-  if (!authenticated) {
+  // Not signed in
+  if (!user) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background p-4">
         <Card className="w-full max-w-sm">
@@ -49,30 +56,48 @@ export default function AdminPage() {
             </div>
             <CardTitle>Admin Panel</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Enter the admin passkey to continue
+              Sign in with your team account to continue
             </p>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <Input
-              type="password"
-              placeholder="Enter passkey"
-              value={passkey}
-              onChange={(e) => {
-                setPasskey(e.target.value);
-                setPasskeyError(false);
-              }}
-              onKeyDown={(e) => e.key === "Enter" && handleLogin()}
-              className={passkeyError ? "border-red-500" : ""}
-            />
-            {passkeyError && (
-              <p className="text-xs text-red-500">Incorrect passkey</p>
-            )}
-            <Button className="w-full" onClick={handleLogin}>
-              Access Panel
-            </Button>
-            <p className="text-xs text-center text-muted-foreground">
-              Demo passkey: <code className="bg-muted px-1 rounded">medicare404</code>
+          <CardContent>
+            <SignInButton mode="modal">
+              <Button className="w-full gap-2">
+                <LogIn className="h-4 w-4" />
+                Sign In
+              </Button>
+            </SignInButton>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Check if the signed-in user is an admin
+  const userEmail = user.primaryEmailAddress?.emailAddress ?? "";
+  const isAdmin = ADMIN_EMAILS.includes(userEmail.toLowerCase());
+
+  if (!isAdmin) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-sm">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
+              <ShieldX className="h-6 w-6 text-red-500" />
+            </div>
+            <CardTitle>Access Denied</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              <span className="font-medium">{userEmail}</span> is not authorized
+              to access the admin panel. Only team members can access this page.
             </p>
+          </CardHeader>
+          <CardContent>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => window.history.back()}
+            >
+              Go Back
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -108,13 +133,14 @@ export default function AdminPage() {
                 Manage doctor verification and profiles
               </p>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setAuthenticated(false)}
-            >
-              Lock Panel
-            </Button>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-muted-foreground hidden sm:inline">
+                {userEmail}
+              </span>
+              <Badge variant="outline" className="text-green-600 border-green-300 dark:border-green-800 dark:text-green-400">
+                <BadgeCheck className="mr-1 h-3 w-3" /> Admin
+              </Badge>
+            </div>
           </div>
         </div>
       </div>
