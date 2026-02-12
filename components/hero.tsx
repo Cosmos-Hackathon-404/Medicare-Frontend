@@ -8,7 +8,7 @@ export function Hero() {
       <div className="max-w-7xl mx-auto w-full">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           {/* Left Content */}
-          <div className="space-y-6">
+          <div className="relative z-30 space-y-6">
             <div className="inline-block">
               <span className="px-3 py-1 rounded-full bg-primary/10 text-primary border border-primary/20 text-sm font-medium">
                 ✨ AI-Powered Healthcare
@@ -58,7 +58,7 @@ export function Hero() {
 
           {/* Right Side - Visual Element */}
           <div className="hidden lg:flex items-center justify-center">
-            <div className="relative w-full h-96">
+            <div className="relative isolate overflow-hidden w-full h-96">
               <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-accent/20 rounded-3xl transform rotate-6"></div>
               <div className="absolute inset-0 bg-card rounded-2xl border border-border shadow-lg p-6 transform -rotate-3 z-10">
                 <div className="space-y-4">
