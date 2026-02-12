@@ -41,3 +41,10 @@ export const getByIds = query({
     return reports.filter(Boolean);
   },
 });
+
+export const getFileUrl = query({
+  args: { fileStorageId: v.id("_storage") },
+  handler: async (ctx, args) => {
+    return await ctx.storage.getUrl(args.fileStorageId);
+  },
+});

@@ -14,6 +14,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { SessionRecorder } from "@/components/doctor/session-recorder";
 import { EditableAISummaryCard } from "@/components/doctor/editable-ai-summary-card";
+import { DrugInteractionChecker } from "@/components/doctor/drug-interaction-checker";
 import {
   ArrowLeft,
   Calendar,
@@ -454,6 +455,22 @@ export default function SessionPage({
             onSave={handleSaveSummary}
             isSaving={isSaving}
           />
+
+          {/* Drug Interaction & Allergy Checker */}
+          {session?.prescriptions && (() => {
+            try {
+              const parsed = JSON.parse(session.prescriptions);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                return (
+                  <DrugInteractionChecker
+                    patientClerkId={appointment.patientClerkId}
+                    prescriptions={parsed}
+                  />
+                );
+              }
+            } catch { /* invalid prescriptions JSON */ }
+            return null;
+          })()}
 
           {/* Session Notes */}
           {appointment.notes && (

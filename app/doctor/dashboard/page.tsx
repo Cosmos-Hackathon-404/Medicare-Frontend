@@ -19,6 +19,7 @@ import {
 import Link from "next/link";
 import { format, isToday, parseISO } from "date-fns";
 import type { Appointment } from "@/types";
+import { CriticalAlertBanner } from "@/components/doctor/critical-alert-banner";
 
 export default function DoctorDashboardPage() {
   const { user } = useUser();
@@ -63,6 +64,9 @@ export default function DoctorDashboardPage() {
           Welcome back, Dr. {user?.firstName ?? "Doctor"}
         </p>
       </div>
+
+      {/* Critical Alerts Banner */}
+      <CriticalAlertBanner doctorClerkId={doctorClerkId} />
 
       {/* Stats Grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

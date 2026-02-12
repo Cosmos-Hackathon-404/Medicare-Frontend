@@ -4,11 +4,35 @@ import { useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Upload, FileText, Image, X, Loader2, CheckCircle2 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { Upload, FileText, Image, X, Loader2, CheckCircle2, Globe } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+const LANGUAGES = [
+  "English",
+  "Hindi",
+  "Spanish",
+  "French",
+  "Arabic",
+  "Bengali",
+  "Portuguese",
+  "Mandarin Chinese",
+  "Japanese",
+  "German",
+  "Tamil",
+  "Telugu",
+  "Urdu",
+] as const;
+
 interface ReportUploaderProps {
-  onUpload: (file: File, fileType: "pdf" | "image") => Promise<void>;
+  onUpload: (file: File, fileType: "pdf" | "image", language?: string) => Promise<void>;
   isUploading?: boolean;
   className?: string;
 }
@@ -21,6 +45,7 @@ export function ReportUploader({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [selectedLanguage, setSelectedLanguage] = useState<string>("English");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const acceptedTypes = [
@@ -70,7 +95,7 @@ export function ReportUploader({
     }, 200);
 
     try {
-      await onUpload(selectedFile, fileType);
+      await onUpload(selectedFile, fileType, selectedLanguage);
       setUploadProgress(100);
       setTimeout(() => {
         setSelectedFile(null);
@@ -157,6 +182,29 @@ export function ReportUploader({
                   <X className="h-4 w-4" />
                 </Button>
               )}
+            </div>
+
+            {/* Language Selector */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5 text-sm">
+                <Globe className="h-3.5 w-3.5" />
+                Analysis Language
+              </Label>
+              <Select value={selectedLanguage} onValueChange={setSelectedLanguage}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {LANGUAGES.map((lang) => (
+                    <SelectItem key={lang} value={lang}>
+                      {lang}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                AI analysis will be provided in the selected language.
+              </p>
             </div>
 
             {/* Upload Progress */}

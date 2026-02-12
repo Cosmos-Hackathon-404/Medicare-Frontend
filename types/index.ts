@@ -156,3 +156,54 @@ export interface Message {
   content: string;
   read: boolean;
 }
+
+// ===== Vital Signs =====
+export type VitalType =
+  | "blood_pressure"
+  | "blood_sugar"
+  | "heart_rate"
+  | "weight"
+  | "temperature"
+  | "oxygen_saturation";
+
+export interface Vital {
+  _id: Id<"vitals">;
+  _creationTime: number;
+  patientClerkId: string;
+  recordedAt: string;
+  type: VitalType;
+  value: number;
+  secondaryValue?: number;
+  unit: string;
+  notes?: string;
+  source: "manual" | "ai_extracted";
+}
+
+// ===== Critical Alert =====
+export type AlertSeverity = "critical" | "urgent" | "warning";
+export type AlertStatus = "active" | "acknowledged" | "resolved";
+export type AlertType = "report_critical_flag" | "vitals_abnormal" | "drug_interaction";
+
+export interface CriticalAlert {
+  _id: Id<"criticalAlerts">;
+  _creationTime: number;
+  patientClerkId: string;
+  doctorClerkId: string;
+  reportId?: Id<"reports">;
+  sessionId?: Id<"sessions">;
+  type: AlertType;
+  title: string;
+  message: string;
+  severity: AlertSeverity;
+  status: AlertStatus;
+  acknowledgedAt?: string;
+}
+
+// ===== Drug Interaction Check =====
+export interface DrugAlert {
+  type: "allergy" | "interaction" | "contraindication" | "dosage";
+  severity: "critical" | "warning" | "info";
+  medication: string;
+  message: string;
+  details: string;
+}

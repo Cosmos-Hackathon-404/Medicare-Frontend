@@ -66,3 +66,76 @@ export const getById = query({
     return await ctx.db.get(args.appointmentId);
   },
 });
+
+// Get unique doctors the patient has appointments with
+export const getDoctorsForPatient = query({
+  args: { patientClerkId: v.string() },
+  handler: async (ctx, args) => {
+    const appointments = await ctx.db
+      .query("appointments")
+      .withIndex("by_patientClerkId", (q) =>
+        q.eq("patientClerkId", args.patientClerkId)
+      )
+      .collect();
+
+    // Get unique doctor clerk IDs
+    const uniqueDoctorIds = [
+      ...new Set(appointments.map((a) => a.doctorClerkId)),
+    ];
+
+    // Fetch doctor profiles
+    const doctors = await Promise.all(
+      uniqueDoctorIds.map(async (clerkId) => {
+        const doctor = await ctx.db
+          .query("doctorProfiles")
+          .withIndex("by_clerkUserId", (q) => q.eq("clerkUserId", clerkId))
+          .first();
+        return doctor
+          ? {
+              clerkUserId: doctor.clerkUserId,
+              name: doctor.name,
+              specialization: doctor.specialization,
+            }
+          : null;
+      })
+    );
+
+    return doctors.filter(Boolean);
+  },
+});
+
+// Get unique patients the doctor has appointments with
+export const getPatientsForDoctor = query({
+  args: { doctorClerkId: v.string() },
+  handler: async (ctx, args) => {
+    const appointments = await ctx.db
+      .query("appointments")
+      .withIndex("by_doctorClerkId", (q) =>
+        q.eq("doctorClerkId", args.doctorClerkId)
+      )
+      .collect();
+
+    // Get unique patient clerk IDs
+    const uniquePatientIds = [
+      ...new Set(appointments.map((a) => a.patientClerkId)),
+    ];
+
+    // Fetch patient profiles
+    const patients = await Promise.all(
+      uniquePatientIds.map(async (clerkId) => {
+        const patient = await ctx.db
+          .query("patientProfiles")
+          .withIndex("by_clerkUserId", (q) => q.eq("clerkUserId", clerkId))
+          .first();
+        return patient
+          ? {
+              clerkUserId: patient.clerkUserId,
+              name: patient.name,
+            }
+          : null;
+      })
+    );
+
+    return patients.filter(Boolean);
+  },
+});

@@ -32,6 +32,7 @@ import {
   CalendarCog,
   Settings,
   MessageSquare,
+  Activity,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { Separator } from "@/components/ui/separator";
@@ -59,6 +60,7 @@ const patientNav: NavItem[] = [
   { label: "Find Doctor", href: "/patient/book", icon: Search },
   { label: "Messages", href: "/patient/chat", icon: MessageSquare },
   { label: "My Reports", href: "/patient/reports", icon: FileText },
+  { label: "Health Trends", href: "/patient/health-trends", icon: Activity },
   { label: "Sessions", href: "/patient/sessions", icon: History },
   { label: "Share Context", href: "/patient/share", icon: Share2 },
   { label: "Settings", href: "/patient/settings", icon: Settings },

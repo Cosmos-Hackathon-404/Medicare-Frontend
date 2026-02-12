@@ -105,4 +105,42 @@ export default defineSchema({
   })
     .index("by_conversation", ["senderClerkId", "receiverClerkId"])
     .index("by_receiverClerkId", ["receiverClerkId"]),
+
+  // ===== AI Chat Messages =====
+  aiChatMessages: defineTable({
+    userClerkId: v.string(),
+    role: v.string(), // "user" | "assistant"
+    content: v.string(),
+  }).index("by_userClerkId", ["userClerkId"]),
+
+  // ===== Patient Vitals =====
+  vitals: defineTable({
+    patientClerkId: v.string(),
+    recordedAt: v.string(), // ISO date string
+    type: v.string(), // "blood_pressure" | "blood_sugar" | "heart_rate" | "weight" | "temperature" | "oxygen_saturation"
+    value: v.number(), // primary value
+    secondaryValue: v.optional(v.number()), // e.g., diastolic for BP
+    unit: v.string(), // "mmHg", "mg/dL", "bpm", "kg", "°F", "%"
+    notes: v.optional(v.string()),
+    source: v.string(), // "manual" | "ai_extracted"
+  })
+    .index("by_patientClerkId", ["patientClerkId"])
+    .index("by_type", ["patientClerkId", "type"]),
+
+  // ===== Critical Alerts =====
+  criticalAlerts: defineTable({
+    patientClerkId: v.string(),
+    doctorClerkId: v.string(),
+    reportId: v.optional(v.id("reports")),
+    sessionId: v.optional(v.id("sessions")),
+    type: v.string(), // "report_critical_flag" | "vitals_abnormal" | "drug_interaction"
+    title: v.string(),
+    message: v.string(),
+    severity: v.string(), // "critical" | "urgent" | "warning"
+    status: v.string(), // "active" | "acknowledged" | "resolved"
+    acknowledgedAt: v.optional(v.string()),
+  })
+    .index("by_doctorClerkId", ["doctorClerkId"])
+    .index("by_patientClerkId", ["patientClerkId"])
+    .index("by_status", ["doctorClerkId", "status"]),
 });

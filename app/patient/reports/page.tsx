@@ -18,6 +18,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ReportUploader } from "@/components/patient/report-uploader";
 import { CriticalFlagsList } from "@/components/doctor/critical-flag-badge";
+import { ReportViewerDialog } from "@/components/shared/report-viewer-dialog";
 import {
   FileText,
   Upload,
@@ -52,7 +53,7 @@ export default function PatientReportsPage() {
 
   const isLoading = !reports;
 
-  const handleUpload = async (file: File, fileType: "pdf" | "image") => {
+  const handleUpload = async (file: File, fileType: "pdf" | "image", language?: string) => {
     if (!patientClerkId) return;
 
     setIsUploading(true);
@@ -82,6 +83,7 @@ export default function PatientReportsPage() {
         fileStorageId: storageId,
         fileType,
         patientClerkId,
+        language: language ?? "English",
       });
 
       toast.success("Report uploaded and analyzed!");
@@ -226,62 +228,12 @@ export default function PatientReportsPage() {
         </Card>
       )}
 
-      {/* Report Detail Dialog */}
-      <Dialog
+      {/* Report Detail Dialog — Side-by-side Document + AI Analysis */}
+      <ReportViewerDialog
+        report={selectedReport}
         open={!!selectedReport}
         onOpenChange={(open) => !open && setSelectedReport(null)}
-      >
-        <DialogContent className="max-w-2xl">
-          {selectedReport && (
-            <>
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  {selectedReport.fileType === "image" ? (
-                    <Image className="h-5 w-5" />
-                  ) : (
-                    <FileIcon className="h-5 w-5" />
-                  )}
-                  {selectedReport.fileName}
-                </DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between text-sm text-muted-foreground">
-                  <span>
-                    Uploaded{" "}
-                    {format(
-                      new Date(selectedReport._creationTime),
-                      "MMMM d, yyyy"
-                    )}
-                  </span>
-                  <Badge variant="outline">{selectedReport.fileType}</Badge>
-                </div>
-
-                {selectedReport.criticalFlags &&
-                  selectedReport.criticalFlags.length > 0 && (
-                    <div>
-                      <h4 className="mb-2 font-medium">Critical Flags</h4>
-                      <CriticalFlagsList
-                        flags={selectedReport.criticalFlags}
-                        expanded
-                      />
-                    </div>
-                  )}
-
-                {selectedReport.aiSummary && (
-                  <div>
-                    <h4 className="mb-2 font-medium">AI Analysis</h4>
-                    <ScrollArea className="h-[200px] rounded-lg bg-muted/30 p-4">
-                      <p className="whitespace-pre-wrap text-sm">
-                        {selectedReport.aiSummary}
-                      </p>
-                    </ScrollArea>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+      />
     </div>
   );
 }

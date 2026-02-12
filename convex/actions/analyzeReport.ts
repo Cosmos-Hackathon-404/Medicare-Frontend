@@ -22,6 +22,7 @@ export const analyzeReport = action({
     fileStorageId: v.id("_storage"),
     fileType: v.string(), // "pdf" | "image"
     patientClerkId: v.string(),
+    language: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_GEMINI_API_KEY! });
@@ -69,9 +70,13 @@ export const analyzeReport = action({
     }
 
     // Step 3: Analyze with Gemini multimodal
+    const languageInstruction = args.language && args.language !== "English"
+      ? `\n\nIMPORTANT: Provide the entire analysis in ${args.language}. The plain_language_summary, critical flag details, recommendations, and pre_diagnosis_insights should ALL be written in ${args.language}. Keep medical terms in English but explain them in ${args.language}.`
+      : "";
+
     const prompt = fillPrompt(REPORT_ANALYSIS_PROMPT, {
       patientContext: patientContextStr,
-    });
+    }) + languageInstruction;
 
     const analysisResponse = await ai.models.generateContent({
       model: "gemini-3-pro-preview",
@@ -156,6 +161,46 @@ Pre-diagnosis Insights: ${parsed.pre_diagnosis_insights}`,
       criticalFlags,
       ...(supermemoryDocId ? { supermemoryDocId } : {}),
     });
+
+    // Step 6: Auto-create critical alerts for high-severity flags
+    const highFlags = criticalFlags.filter(
+      (f: { severity: string }) => f.severity === "high"
+    );
+    if (highFlags.length > 0) {
+      // Find doctors associated with this patient via appointments
+      const appointments = await ctx.runQuery(
+        api.queries.appointments.getByPatient,
+        { patientClerkId: args.patientClerkId }
+      );
+      const doctorClerkIds = [
+        ...new Set(
+          appointments
+            ?.filter((a: { status: string }) => a.status !== "cancelled")
+            .map((a: { doctorClerkId: string }) => a.doctorClerkId) ?? []
+        ),
+      ];
+
+      for (const doctorClerkId of doctorClerkIds) {
+        try {
+          await ctx.runMutation(api.mutations.criticalAlerts.create, {
+            patientClerkId: args.patientClerkId,
+            doctorClerkId,
+            reportId: args.reportId,
+            type: "report_critical_flag",
+            title: `Critical finding in report`,
+            message: highFlags
+              .map(
+                (f: { issue: string; details: string }) =>
+                  `${f.issue}: ${f.details}`
+              )
+              .join(" | "),
+            severity: "critical",
+          });
+        } catch {
+          // Alert creation failed — non-critical
+        }
+      }
+    }
 
     return {
       summary: parsed.plain_language_summary,
