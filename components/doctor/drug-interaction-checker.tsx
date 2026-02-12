@@ -25,6 +25,7 @@ import {
   AlertOctagon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface Prescription {
   medication: string;
@@ -85,9 +86,15 @@ export function DrugInteractionChecker({
       setResult(checkResult);
       if (!checkResult.safe) {
         setShowDetails(true);
+        toast.error(
+          `${checkResult.alerts.length} safety alert${checkResult.alerts.length !== 1 ? "s" : ""} found! Review the details carefully.`
+        );
+      } else {
+        toast.success("Drug safety check passed — no interactions found.");
       }
     } catch (error) {
       console.error("Drug interaction check failed:", error);
+      toast.error("Drug interaction check failed. Please try again.");
     } finally {
       setIsChecking(false);
     }
@@ -243,7 +250,7 @@ export function DrugInteractionChecker({
 
               {result?.safe && (
                 <div className="flex flex-col items-center py-6 text-center">
-                  <ShieldCheck className="mb-3 h-12 w-12 text-green-500" />
+                  <ShieldCheck className="mb-3 h-12 w-12 text-green-600 dark:text-green-400" />
                   <p className="font-medium text-green-700 dark:text-green-400">
                     All Clear
                   </p>

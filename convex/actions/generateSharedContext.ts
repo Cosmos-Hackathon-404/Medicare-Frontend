@@ -24,6 +24,7 @@ export const generateSharedContext = action({
     toDoctorClerkId: v.string(),
     sessionIds: v.array(v.id("sessions")),
     reportIds: v.array(v.id("reports")),
+    sharedContextId: v.optional(v.id("sharedContexts")),
   },
   handler: async (ctx, args): Promise<{
     sharedContextId: Id<"sharedContexts">;
@@ -33,6 +34,8 @@ export const generateSharedContext = action({
     const supermemory = new Supermemory({
       apiKey: process.env.SUPERMEMORY_API_KEY!,
     });
+
+    try {
 
     // Step 1: Get full patient profile from Supermemory
     let staticFacts = "No profile data available.";
@@ -69,7 +72,7 @@ export const generateSharedContext = action({
     });
 
     const summaryResponse = await ai.models.generateContent({
-      model: "gemini-3-pro-preview",
+      model: "gemini-3-flash-preview",
       contents: prompt,
     });
     const summaryText = summaryResponse.text ?? "";
@@ -96,22 +99,49 @@ export const generateSharedContext = action({
 
     const consolidatedSummary = JSON.stringify(parsed);
 
-    // Step 3: Create shared context in Convex
-    const sharedContextId = await ctx.runMutation(
-      api.mutations.sharedContexts.create,
-      {
-        patientClerkId: args.patientClerkId,
-        fromDoctorClerkId: args.fromDoctorClerkId,
-        toDoctorClerkId: args.toDoctorClerkId,
-        sessionIds: args.sessionIds,
-        reportIds: args.reportIds,
+    // Step 3: Create or update shared context in Convex
+    let sharedContextId: Id<"sharedContexts">;
+    if (args.sharedContextId) {
+      // Update existing record created by scheduling mutation
+      await ctx.runMutation(api.mutations.sharedContexts.updateSummary, {
+        sharedContextId: args.sharedContextId,
         aiConsolidatedSummary: consolidatedSummary,
-      }
-    );
+      });
+      await ctx.runMutation(api.mutations.sharedContexts.updateProcessingStatus, {
+        sharedContextId: args.sharedContextId,
+        processingStatus: "completed",
+      });
+      sharedContextId = args.sharedContextId;
+    } else {
+      // Direct call — create new record
+      sharedContextId = await ctx.runMutation(
+        api.mutations.sharedContexts.create,
+        {
+          patientClerkId: args.patientClerkId,
+          fromDoctorClerkId: args.fromDoctorClerkId,
+          toDoctorClerkId: args.toDoctorClerkId,
+          sessionIds: args.sessionIds,
+          reportIds: args.reportIds,
+          aiConsolidatedSummary: consolidatedSummary,
+        }
+      );
+    }
 
     return {
       sharedContextId,
       consolidatedSummary: parsed,
     };
+
+    } catch (error) {
+      // Mark processing as failed if we have a shared context ID
+      if (args.sharedContextId) {
+        await ctx.runMutation(api.mutations.sharedContexts.updateProcessingStatus, {
+          sharedContextId: args.sharedContextId,
+          processingStatus: "failed",
+          errorMessage: error instanceof Error ? error.message : "An unexpected error occurred while generating shared context",
+        });
+      }
+      throw error;
+    }
   },
 });

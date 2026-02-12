@@ -17,8 +17,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Progress } from "@/components/ui/progress";
+import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { Settings, Save } from "lucide-react";
+import { Settings, Save, User, Shield, FileText } from "lucide-react";
 import { SPECIALIZATIONS } from "@/lib/constants";
 
 export default function DoctorSettingsPage() {
@@ -93,69 +95,124 @@ export default function DoctorSettingsPage() {
         </p>
       </div>
 
+      {/* Profile Completeness */}
+      {(() => {
+        const fields = [form.name, form.specialization, form.licenseNumber, form.bio];
+        const filled = fields.filter(Boolean).length;
+        const percentage = Math.round((filled / fields.length) * 100);
+        return (
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-medium">Profile Completeness</p>
+                <span className="text-sm font-bold text-primary">{percentage}%</span>
+              </div>
+              <Progress value={percentage} className="h-2" />
+              {percentage < 100 && (
+                <p className="text-xs text-muted-foreground mt-2">
+                  Complete all fields to improve your profile visibility to patients.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        );
+      })()}
+
+      {/* Personal Information */}
       <Card>
         <CardHeader>
-          <CardTitle>Profile Information</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <User className="h-5 w-5 text-primary" />
+            Personal Information
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSave} className="space-y-4 max-w-lg">
-            <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
-              <Input
-                id="name"
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                required
-              />
+          <form onSubmit={handleSave} className="space-y-6">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="name">Full Name</Label>
+                <Input
+                  id="name"
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Email</Label>
+                <Input value={profile.email} disabled className="opacity-60" />
+                <p className="text-xs text-muted-foreground">
+                  Managed through your account settings.
+                </p>
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Specialization</Label>
-              <Select
-                value={form.specialization}
-                onValueChange={(v) =>
-                  setForm({ ...form, specialization: v })
-                }
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select specialization" />
-                </SelectTrigger>
-                <SelectContent>
-                  {SPECIALIZATIONS.map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {s}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+
+            <Separator />
+
+            {/* Professional Details */}
+            <div>
+              <h3 className="text-sm font-semibold flex items-center gap-2 mb-4">
+                <Shield className="h-4 w-4 text-primary" />
+                Professional Details
+              </h3>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Specialization</Label>
+                  <Select
+                    value={form.specialization}
+                    onValueChange={(v) =>
+                      setForm({ ...form, specialization: v })
+                    }
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select specialization" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SPECIALIZATIONS.map((s) => (
+                        <SelectItem key={s} value={s}>
+                          {s}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="license">License Number</Label>
+                  <Input
+                    id="license"
+                    value={form.licenseNumber}
+                    onChange={(e) =>
+                      setForm({ ...form, licenseNumber: e.target.value })
+                    }
+                    required
+                  />
+                </div>
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="license">License Number</Label>
-              <Input
-                id="license"
-                value={form.licenseNumber}
-                onChange={(e) =>
-                  setForm({ ...form, licenseNumber: e.target.value })
-                }
-                required
-              />
+
+            <Separator />
+
+            {/* Bio */}
+            <div>
+              <h3 className="text-sm font-semibold flex items-center gap-2 mb-4">
+                <FileText className="h-4 w-4 text-primary" />
+                About You
+              </h3>
+              <div className="space-y-2">
+                <Label htmlFor="bio">Professional Bio</Label>
+                <Textarea
+                  id="bio"
+                  value={form.bio}
+                  onChange={(e) => setForm({ ...form, bio: e.target.value })}
+                  rows={4}
+                  placeholder="Share your professional background, areas of expertise, and approach to patient care..."
+                />
+                <p className="text-xs text-muted-foreground">
+                  This will be visible to patients when they view your profile.
+                </p>
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="bio">Bio</Label>
-              <Textarea
-                id="bio"
-                value={form.bio}
-                onChange={(e) => setForm({ ...form, bio: e.target.value })}
-                rows={4}
-                placeholder="Brief professional bio..."
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Email</Label>
-              <Input value={profile.email} disabled className="opacity-60" />
-              <p className="text-xs text-muted-foreground">
-                Email is managed through your account settings.
-              </p>
-            </div>
+
             <Button type="submit" disabled={saving} className="gap-2">
               <Save className="h-4 w-4" />
               {saving ? "Saving..." : "Save Changes"}

@@ -44,6 +44,25 @@ export const summarizeSession = action({
       apiKey: process.env.SUPERMEMORY_API_KEY!,
     });
 
+    // Resolve session ID early — either use existing or create new
+    const sessionId = args.sessionId ?? await ctx.runMutation(
+      api.mutations.sessions.create,
+      {
+        appointmentId: args.appointmentId,
+        patientClerkId: args.patientClerkId,
+        doctorClerkId: args.doctorClerkId,
+        audioStorageId: args.audioStorageId,
+      }
+    );
+
+    // Mark session as processing
+    await ctx.runMutation(api.mutations.sessions.updateProcessingStatus, {
+      sessionId,
+      processingStatus: "processing",
+    });
+
+    try {
+
     // Step 1: Fetch audio from Convex storage
     const audioUrl = await ctx.storage.getUrl(args.audioStorageId);
     if (!audioUrl) throw new Error("Audio file not found in storage");
@@ -54,7 +73,7 @@ export const summarizeSession = action({
 
     // Step 2: Transcribe with Gemini
     const transcriptionResponse = await ai.models.generateContent({
-      model: "gemini-3-pro-preview",
+      model: "gemini-3-flash-preview",
       contents: [
         {
           role: "user",
@@ -105,7 +124,7 @@ export const summarizeSession = action({
     });
 
     const summaryResponse = await ai.models.generateContent({
-      model: "gemini-3-pro-preview",
+      model: "gemini-3-flash-preview",
       contents: prompt,
     });
     const summaryText = summaryResponse.text ?? "";
@@ -127,17 +146,6 @@ export const summarizeSession = action({
         key_decisions: [],
       };
     }
-
-    // Step 5: Use existing session or create a new one
-    const sessionId = args.sessionId ?? await ctx.runMutation(
-      api.mutations.sessions.create,
-      {
-        appointmentId: args.appointmentId,
-        patientClerkId: args.patientClerkId,
-        doctorClerkId: args.doctorClerkId,
-        audioStorageId: args.audioStorageId,
-      }
-    );
 
     // Normalize prescriptions - handle both string and array formats
     const rawPrescriptions = parsed.prescriptions ?? [];
@@ -164,6 +172,12 @@ export const summarizeSession = action({
       aiSummary: JSON.stringify(normalizedSummary),
       keyDecisions: normalizedSummary.keyDecisions,
       prescriptions: JSON.stringify(normalizedPrescriptions),
+    });
+
+    // Mark processing as completed
+    await ctx.runMutation(api.mutations.sessions.updateProcessingStatus, {
+      sessionId,
+      processingStatus: "completed",
     });
 
     // Update appointment status to completed
@@ -209,5 +223,15 @@ Follow-up: ${(parsed.follow_up_actions ?? parsed.followUpActions ?? []).join(", 
       keyDecisions: normalizedSummary.keyDecisions,
       prescriptions: normalizedSummary.prescriptions,
     };
+
+    } catch (error) {
+      // Mark session processing as failed
+      await ctx.runMutation(api.mutations.sessions.updateProcessingStatus, {
+        sessionId,
+        processingStatus: "failed",
+        errorMessage: error instanceof Error ? error.message : "An unexpected error occurred during session processing",
+      });
+      throw error;
+    }
   },
 });

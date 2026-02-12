@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { useUser } from "@clerk/nextjs";
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -35,6 +36,7 @@ import {
   Download,
   Image,
   FileIcon,
+  Loader2,
 } from "lucide-react";
 import { format } from "date-fns";
 import type { Report } from "@/types";
@@ -199,14 +201,16 @@ export default function DoctorReportsPage() {
         </div>
       ) : (
         <Card>
-          <CardContent className="py-12 text-center">
-            <FileText className="mx-auto mb-3 h-12 w-12 text-muted-foreground opacity-40" />
-            <p className="font-medium">No reports found</p>
-            <p className="text-sm text-muted-foreground">
-              {search || severityFilter !== "all"
-                ? "Try adjusting your filters."
-                : "Patient reports will appear here."}
-            </p>
+          <CardContent>
+            <EmptyState
+              icon={FileText}
+              title="No reports found"
+              description={
+                search || severityFilter !== "all"
+                  ? "Try adjusting your filters."
+                  : "Patient reports will appear here."
+              }
+            />
           </CardContent>
         </Card>
       )}
@@ -231,6 +235,33 @@ function ReportCard({
   const hasHighPriority = report.criticalFlags?.some(
     (f) => f.severity === "high"
   );
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const fileUrl = useQuery(api.queries.reports.getFileUrl, {
+    fileStorageId: report.fileStorageId,
+  });
+
+  const handleDownload = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!fileUrl) return;
+    setIsDownloading(true);
+    try {
+      const response = await fetch(fileUrl);
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = report.fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      console.error("Download failed");
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   return (
     <Card
@@ -241,17 +272,31 @@ function ReportCard({
     >
       <CardContent className="p-4">
         <div className="mb-3 flex items-start justify-between">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 min-w-0">
             {report.fileType === "image" ? (
-              <Image className="h-5 w-5 text-blue-500" />
+              <Image className="h-5 w-5 text-blue-600 dark:text-blue-400 shrink-0" />
             ) : (
-              <FileIcon className="h-5 w-5 text-orange-500" />
+              <FileIcon className="h-5 w-5 text-orange-600 dark:text-orange-400 shrink-0" />
             )}
             <span className="font-medium line-clamp-1">{report.fileName}</span>
           </div>
-          {hasHighPriority && (
-            <AlertTriangle className="h-4 w-4 shrink-0 text-destructive" />
-          )}
+          <div className="flex items-center gap-1 shrink-0 ml-2">
+            {hasHighPriority && (
+              <AlertTriangle className="h-4 w-4 text-destructive" />
+            )}
+            <button
+              onClick={handleDownload}
+              disabled={!fileUrl || isDownloading}
+              className="p-1 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground disabled:opacity-50"
+              title="Download report"
+            >
+              {isDownloading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+            </button>
+          </div>
         </div>
 
         <p className="mb-3 text-xs text-muted-foreground">

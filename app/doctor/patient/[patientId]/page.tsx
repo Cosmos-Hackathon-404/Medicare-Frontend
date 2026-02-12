@@ -6,6 +6,7 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PatientTimeline } from "@/components/doctor/patient-timeline";
@@ -19,6 +20,8 @@ import {
   AlertTriangle,
   Phone,
   Mail,
+  MessageSquare,
+  Share2,
 } from "lucide-react";
 import Link from "next/link";
 import type { CriticalFlag } from "@/types";
@@ -86,16 +89,32 @@ export default function PatientDetailPage({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <Link
-          href="/doctor/appointments"
-          className="mb-2 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Appointments
-        </Link>
-        <h1 className="text-3xl font-bold tracking-tight">{patient.name}</h1>
-        <p className="text-muted-foreground">Patient Profile</p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <Link
+            href="/doctor/appointments"
+            className="mb-2 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Appointments
+          </Link>
+          <h1 className="text-3xl font-bold tracking-tight">{patient.name}</h1>
+          <p className="text-muted-foreground">Patient Profile</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Link href={`/doctor/chat?patient=${patient.clerkUserId}`}>
+            <Button variant="outline" className="gap-2">
+              <MessageSquare className="h-4 w-4" />
+              Send Message
+            </Button>
+          </Link>
+          <Link href="/doctor/shared-context">
+            <Button variant="outline" className="gap-2">
+              <Share2 className="h-4 w-4" />
+              Shared Context
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Main Content */}
@@ -148,7 +167,7 @@ export default function PatientDetailPage({
             <Card className="border-orange-500/30 bg-orange-500/5">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg">
-                  <AlertTriangle className="h-5 w-5 text-orange-500" />
+                  <AlertTriangle className="h-5 w-5 text-orange-600 dark:text-orange-400" />
                   Allergies
                 </CardTitle>
               </CardHeader>

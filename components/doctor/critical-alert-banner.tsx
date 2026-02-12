@@ -101,7 +101,7 @@ export function CriticalAlertBanner({
                   {urgentCount > 0 && (
                     <Badge
                       variant="outline"
-                      className="text-xs border-amber-500 text-amber-600"
+                      className="text-xs border-amber-500 dark:border-amber-600 text-amber-600 dark:text-amber-400"
                     >
                       {urgentCount} urgent
                     </Badge>

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useUser } from "@clerk/nextjs";
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,10 +35,36 @@ import {
   XCircle,
   FileText,
   MessageSquare,
+  ChevronLeft,
+  ChevronRight,
+  Ban,
+  Video,
+  Building2,
 } from "lucide-react";
 import Link from "next/link";
 import { format, parseISO, isAfter, isBefore, startOfDay } from "date-fns";
 import type { Appointment } from "@/types";
+import { StatsCard } from "@/components/shared/stats-card";
+import { EmptyState } from "@/components/shared/empty-state";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
+import { MoreHorizontal } from "lucide-react";
 
 type FilterStatus = "all" | "scheduled" | "completed" | "cancelled";
 type FilterTime = "all" | "past" | "today" | "upcoming";
@@ -49,6 +75,8 @@ export default function DoctorAppointmentsPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<FilterStatus>("all");
   const [timeFilter, setTimeFilter] = useState<FilterTime>("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
 
   const appointments = useQuery(
     api.queries.appointments.getByDoctor,
@@ -84,6 +112,19 @@ export default function DoctorAppointmentsPage() {
     })
     .sort((a, b) => parseISO(b.dateTime).getTime() - parseISO(a.dateTime).getTime());
 
+  const totalFiltered = filteredAppointments?.length ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalFiltered / pageSize));
+  const paginatedAppointments = filteredAppointments?.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
+
+  // Reset to page 1 when filters change
+  const handleFilterChange = <T,>(setter: (v: T) => void, value: T) => {
+    setter(value);
+    setCurrentPage(1);
+  };
+
   const statusCount = {
     all: appointments?.length ?? 0,
     scheduled: appointments?.filter((a) => a.status === "scheduled").length ?? 0,
@@ -104,27 +145,27 @@ export default function DoctorAppointmentsPage() {
       {/* Stats Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatsCard
-          label="Total"
+          title="Total"
           value={statusCount.all}
           icon={Calendar}
           isLoading={isLoading}
         />
         <StatsCard
-          label="Scheduled"
+          title="Scheduled"
           value={statusCount.scheduled}
           icon={Clock}
           variant="blue"
           isLoading={isLoading}
         />
         <StatsCard
-          label="Completed"
+          title="Completed"
           value={statusCount.completed}
           icon={CheckCircle2}
           variant="green"
           isLoading={isLoading}
         />
         <StatsCard
-          label="Cancelled"
+          title="Cancelled"
           value={statusCount.cancelled}
           icon={XCircle}
           variant="red"
@@ -147,13 +188,13 @@ export default function DoctorAppointmentsPage() {
               <Input
                 placeholder="Search patients..."
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => handleFilterChange(setSearch, e.target.value)}
                 className="pl-9"
               />
             </div>
             <Select
               value={statusFilter}
-              onValueChange={(v) => setStatusFilter(v as FilterStatus)}
+              onValueChange={(v) => handleFilterChange(setStatusFilter, v as FilterStatus)}
             >
               <SelectTrigger className="w-[150px]">
                 <SelectValue placeholder="Status" />
@@ -167,7 +208,7 @@ export default function DoctorAppointmentsPage() {
             </Select>
             <Select
               value={timeFilter}
-              onValueChange={(v) => setTimeFilter(v as FilterTime)}
+              onValueChange={(v) => handleFilterChange(setTimeFilter, v as FilterTime)}
             >
               <SelectTrigger className="w-[150px]">
                 <SelectValue placeholder="Time" />
@@ -193,29 +234,70 @@ export default function DoctorAppointmentsPage() {
               ))}
             </div>
           ) : filteredAppointments && filteredAppointments.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date & Time</TableHead>
-                  <TableHead>Patient</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Reports</TableHead>
-                  <TableHead>Notes</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredAppointments.map((apt) => (
-                  <AppointmentRow key={apt._id} appointment={apt as Appointment} />
+            <>
+              {/* Desktop Table (hidden on mobile) */}
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date & Time</TableHead>
+                      <TableHead>Patient</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Reports</TableHead>
+                      <TableHead>Notes</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedAppointments?.map((apt) => (
+                      <AppointmentRow key={apt._id} appointment={apt as Appointment} />
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Mobile Card List (hidden on desktop) */}
+              <div className="md:hidden divide-y">
+                {paginatedAppointments?.map((apt) => (
+                  <MobileAppointmentCard key={apt._id} appointment={apt as Appointment} />
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between border-t px-4 py-3">
+                  <p className="text-sm text-muted-foreground">
+                    Showing {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, totalFiltered)} of {totalFiltered}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <span className="text-sm font-medium">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
           ) : (
-            <div className="py-12 text-center text-muted-foreground">
-              <Calendar className="mx-auto mb-3 h-12 w-12 opacity-40" />
-              <p className="font-medium">No appointments found</p>
-              <p className="text-sm">Try adjusting your filters.</p>
-            </div>
+            <EmptyState
+              icon={Calendar}
+              title="No appointments found"
+              description="Try adjusting your filters."
+            />
           )}
         </CardContent>
       </Card>
@@ -223,50 +305,30 @@ export default function DoctorAppointmentsPage() {
   );
 }
 
-function StatsCard({
-  label,
-  value,
-  icon: Icon,
-  variant = "default",
-  isLoading,
-}: {
-  label: string;
-  value: number;
-  icon: typeof Calendar;
-  variant?: "default" | "blue" | "green" | "red";
-  isLoading?: boolean;
-}) {
-  const variantStyles = {
-    default: "bg-primary/10 text-primary",
-    blue: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
-    green: "bg-green-500/10 text-green-600 dark:text-green-400",
-    red: "bg-destructive/10 text-destructive",
-  };
 
-  return (
-    <Card>
-      <CardContent className="flex items-center gap-4 p-4">
-        <div
-          className={`flex h-10 w-10 items-center justify-center rounded-lg ${variantStyles[variant]}`}
-        >
-          <Icon className="h-5 w-5" />
-        </div>
-        <div>
-          <p className="text-sm text-muted-foreground">{label}</p>
-          {isLoading ? (
-            <Skeleton className="mt-1 h-6 w-8" />
-          ) : (
-            <p className="text-xl font-bold">{value}</p>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
 
 function AppointmentRow({ appointment }: { appointment: Appointment & { patientName?: string } }) {
   const dateTime = parseISO(appointment.dateTime);
   const isScheduled = appointment.status === "scheduled";
+  const updateStatus = useMutation(api.mutations.appointments.updateStatus);
+
+  const handleCancel = async () => {
+    try {
+      await updateStatus({ appointmentId: appointment._id, status: "cancelled" });
+      toast.success("Appointment cancelled");
+    } catch {
+      toast.error("Failed to cancel appointment");
+    }
+  };
+
+  const handleComplete = async () => {
+    try {
+      await updateStatus({ appointmentId: appointment._id, status: "completed" });
+      toast.success("Appointment marked as completed");
+    } catch {
+      toast.error("Failed to update appointment");
+    }
+  };
 
   return (
     <TableRow>
@@ -287,23 +349,31 @@ function AppointmentRow({ appointment }: { appointment: Appointment & { patientN
         </Link>
       </TableCell>
       <TableCell>
-        <Badge
-          variant={
-            appointment.status === "completed"
-              ? "default"
-              : appointment.status === "cancelled"
-                ? "destructive"
-                : "secondary"
-          }
-          className="gap-1"
-        >
-          {appointment.status === "completed" && (
-            <CheckCircle2 className="h-3 w-3" />
+        <div className="flex items-center gap-2">
+          <Badge
+            variant={
+              appointment.status === "completed"
+                ? "default"
+                : appointment.status === "cancelled"
+                  ? "destructive"
+                  : "secondary"
+            }
+            className="gap-1"
+          >
+            {appointment.status === "completed" && (
+              <CheckCircle2 className="h-3 w-3" />
+            )}
+            {appointment.status === "cancelled" && <XCircle className="h-3 w-3" />}
+            {appointment.status === "scheduled" && <Clock className="h-3 w-3" />}
+            {appointment.status}
+          </Badge>
+          {appointment.type === "online" && (
+            <Badge variant="outline" className="gap-1 text-xs text-blue-600 border-blue-200 dark:text-blue-400 dark:border-blue-800">
+              <Video className="h-3 w-3" />
+              Video
+            </Badge>
           )}
-          {appointment.status === "cancelled" && <XCircle className="h-3 w-3" />}
-          {appointment.status === "scheduled" && <Clock className="h-3 w-3" />}
-          {appointment.status}
-        </Badge>
+        </div>
       </TableCell>
       <TableCell>
         {appointment.sharedReportIds && appointment.sharedReportIds.length > 0 ? (
@@ -327,12 +397,22 @@ function AppointmentRow({ appointment }: { appointment: Appointment & { patientN
             </Button>
           </Link>
           {isScheduled ? (
-            <Link href={`/doctor/session/${appointment._id}`}>
-              <Button size="sm" className="gap-1">
-                <Play className="h-3 w-3" />
-                Start Session
-              </Button>
-            </Link>
+            <>
+              {appointment.type === "online" && (
+                <Link href={`/doctor/appointments/${appointment._id}/video`}>
+                  <Button size="sm" className="gap-1 bg-blue-600 hover:bg-blue-700">
+                    <Video className="h-3 w-3" />
+                    Join Call
+                  </Button>
+                </Link>
+              )}
+              <Link href={`/doctor/session/${appointment._id}`}>
+                <Button size="sm" className="gap-1">
+                  <Play className="h-3 w-3" />
+                  Start Session
+                </Button>
+              </Link>
+            </>
           ) : (
             <Link href={`/doctor/session/${appointment._id}`}>
               <Button size="sm" variant="outline" className="gap-1">
@@ -341,8 +421,175 @@ function AppointmentRow({ appointment }: { appointment: Appointment & { patientN
               </Button>
             </Link>
           )}
+          {isScheduled && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                      <CheckCircle2 className="mr-2 h-4 w-4" />
+                      Mark Completed
+                    </DropdownMenuItem>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Mark as completed?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will mark the appointment as completed.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleComplete}>
+                        Confirm
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <DropdownMenuItem
+                      onSelect={(e) => e.preventDefault()}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <Ban className="mr-2 h-4 w-4" />
+                      Cancel Appointment
+                    </DropdownMenuItem>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Cancel appointment?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This action cannot be undone. The patient will be notified of the cancellation.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Go Back</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleCancel}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        Cancel Appointment
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       </TableCell>
     </TableRow>
+  );
+}
+function MobileAppointmentCard({ appointment }: { appointment: Appointment & { patientName?: string } }) {
+  const dateTime = parseISO(appointment.dateTime);
+  const isScheduled = appointment.status === "scheduled";
+  const updateStatus = useMutation(api.mutations.appointments.updateStatus);
+
+  const handleCancel = async () => {
+    try {
+      await updateStatus({ appointmentId: appointment._id, status: "cancelled" });
+      toast.success("Appointment cancelled");
+    } catch {
+      toast.error("Failed to cancel appointment");
+    }
+  };
+
+  return (
+    <div className="p-4 space-y-3">
+      <div className="flex items-start justify-between">
+        <div>
+          <Link
+            href={`/doctor/patient/${appointment.patientId}`}
+            className="font-medium text-primary hover:underline"
+          >
+            {appointment.patientName ?? "View Patient"}
+          </Link>
+          <p className="text-sm text-muted-foreground">
+            {format(dateTime, "MMM d, yyyy")} at {format(dateTime, "h:mm a")}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Badge
+            variant={
+              appointment.status === "completed"
+                ? "default"
+                : appointment.status === "cancelled"
+                  ? "destructive"
+                  : "secondary"
+            }
+            className="gap-1 shrink-0"
+          >
+            {appointment.status === "completed" && <CheckCircle2 className="h-3 w-3" />}
+            {appointment.status === "cancelled" && <XCircle className="h-3 w-3" />}
+            {appointment.status === "scheduled" && <Clock className="h-3 w-3" />}
+            {appointment.status}
+          </Badge>
+          {appointment.type === "online" && (
+            <Badge variant="outline" className="gap-1 text-xs text-blue-600 border-blue-200 dark:text-blue-400 dark:border-blue-800 shrink-0">
+              <Video className="h-3 w-3" />
+              Video
+            </Badge>
+          )}
+        </div>
+      </div>
+      {appointment.notes && (
+        <p className="text-sm text-muted-foreground line-clamp-2">{appointment.notes}</p>
+      )}
+      <div className="flex gap-2">
+        {isScheduled && appointment.type === "online" && (
+          <Link href={`/doctor/appointments/${appointment._id}/video`} className="flex-1">
+            <Button size="sm" className="w-full gap-1 bg-blue-600 hover:bg-blue-700">
+              <Video className="h-3 w-3" />
+              Join Call
+            </Button>
+          </Link>
+        )}
+        <Link href={`/doctor/chat?patient=${appointment.patientClerkId}`} className="flex-1">
+          <Button size="sm" variant="outline" className="w-full gap-1">
+            <MessageSquare className="h-3 w-3" />
+            Message
+          </Button>
+        </Link>
+        <Link href={`/doctor/session/${appointment._id}`} className="flex-1">
+          <Button size="sm" variant={isScheduled ? "default" : "outline"} className="w-full gap-1">
+            {isScheduled ? <Play className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+            {isScheduled ? "Start" : "View"}
+          </Button>
+        </Link>
+        {isScheduled && (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button size="sm" variant="ghost" className="text-destructive px-2">
+                <Ban className="h-4 w-4" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Cancel appointment?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action cannot be undone. The patient will be notified.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Go Back</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleCancel}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Cancel Appointment
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
+      </div>
+    </div>
   );
 }

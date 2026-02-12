@@ -29,6 +29,8 @@ import {
   Plus,
   AlertTriangle,
   MessageSquare,
+  Video,
+  Building2,
 } from "lucide-react";
 import Link from "next/link";
 import { format, parseISO, isAfter, isBefore } from "date-fns";
@@ -281,7 +283,15 @@ function AppointmentCard({
             </span>
           </div>
           <div>
-            <p className="font-semibold">Dr. {appointment.doctorName ?? "Doctor"}</p>
+            <div className="flex items-center gap-2">
+              <p className="font-semibold">Dr. {appointment.doctorName ?? "Doctor"}</p>
+              {appointment.type === "online" && (
+                <Badge variant="outline" className="gap-1 text-xs text-blue-600 border-blue-200 dark:text-blue-400 dark:border-blue-800">
+                  <Video className="h-3 w-3" />
+                  Video
+                </Badge>
+              )}
+            </div>
             {appointment.doctorSpecialization && (
               <p className="text-xs text-muted-foreground">{appointment.doctorSpecialization}</p>
             )}
@@ -347,6 +357,14 @@ function AppointmentCard({
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
+          )}
+          {showCancel && appointment.type === "online" && appointment.status === "scheduled" && (
+            <Link href={`/patient/appointments/${appointment._id}/video`}>
+              <Button size="sm" className="gap-1 bg-blue-600 hover:bg-blue-700">
+                <Video className="h-3 w-3" />
+                Join Call
+              </Button>
+            </Link>
           )}
           <Link href={`/patient/chat?doctor=${appointment.doctorClerkId}`}>
             <Button variant="outline" size="sm" className="gap-1">

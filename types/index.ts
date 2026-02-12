@@ -1,7 +1,8 @@
 // NOTE: Once `npx convex dev` is run and _generated types are available,
 // you can import `Id` from "convex/_generated/dataModel" for stronger typing.
 // Until then, we use a generic string-branded type as a placeholder.
-type Id<T extends string> = string & { __tableName: T };
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+type Id<T extends string> = string;
 
 // ===== Slot Type =====
 export interface AvailableSlot {
@@ -37,7 +38,8 @@ export interface PatientProfile {
 }
 
 // ===== Appointment =====
-export type AppointmentStatus = "scheduled" | "completed" | "cancelled";
+export type AppointmentStatus = "scheduled" | "completed" | "cancelled" | (string & {});
+export type AppointmentType = "offline" | "online" | (string & {});
 
 export interface Appointment {
   _id: Id<"appointments">;
@@ -48,8 +50,26 @@ export interface Appointment {
   doctorClerkId: string;
   dateTime: string; // ISO string
   status: AppointmentStatus;
+  type?: AppointmentType;
   notes?: string;
   sharedReportIds?: Id<"reports">[]; // Reports shared with doctor for this appointment
+}
+
+// ===== Video Room =====
+export type VideoRoomStatus = "waiting" | "active" | "ended" | (string & {});
+
+export interface VideoRoom {
+  _id: Id<"videoRooms">;
+  _creationTime: number;
+  appointmentId: Id<"appointments">;
+  roomId: string;
+  doctorClerkId: string;
+  patientClerkId: string;
+  status: VideoRoomStatus;
+  doctorJoinedAt?: string;
+  patientJoinedAt?: string;
+  endedAt?: string;
+  duration?: number;
 }
 
 // ===== Session =====
@@ -68,7 +88,7 @@ export interface Session {
 }
 
 // ===== Critical Flag =====
-export type FlagSeverity = "high" | "medium" | "low";
+export type FlagSeverity = "high" | "medium" | "low" | (string & {});
 
 export interface CriticalFlag {
   issue: string;
@@ -77,7 +97,8 @@ export interface CriticalFlag {
 }
 
 // ===== Report =====
-export type ReportFileType = "pdf" | "image";
+export type ReportFileType = "pdf" | "image" | (string & {});
+export type AnalysisStatus = "pending" | "analyzing" | "completed" | "failed" | (string & {});
 
 export interface Report {
   _id: Id<"reports">;
@@ -85,15 +106,21 @@ export interface Report {
   patientClerkId: string;
   doctorClerkId?: string;
   fileStorageId: Id<"_storage">;
+  additionalFileStorageIds?: Id<"_storage">[];
   fileName: string;
   fileType: ReportFileType;
+  fileSize?: number;
+  totalPages?: number;
   aiSummary?: string;
+  analysisStatus?: AnalysisStatus;
   criticalFlags?: CriticalFlag[];
+  recommendations?: string[];
+  preDiagnosisInsights?: string;
   supermemoryDocId?: string;
 }
 
 // ===== Shared Context =====
-export type SharedContextStatus = "pending" | "viewed";
+export type SharedContextStatus = "pending" | "viewed" | (string & {});
 
 export interface SharedContext {
   _id: Id<"sharedContexts">;
@@ -108,7 +135,7 @@ export interface SharedContext {
 }
 
 // ===== User Role =====
-export type UserRole = "doctor" | "patient";
+export type UserRole = "doctor" | "patient" | (string & {});
 
 // ===== Session Summary (AI Output) =====
 export interface SessionSummary {
@@ -206,4 +233,73 @@ export interface DrugAlert {
   medication: string;
   message: string;
   details: string;
+}
+
+// ===== Wellness Plan =====
+export interface WellnessMeal {
+  name: string;
+  time: string;
+  items: string[];
+  notes?: string;
+}
+
+export interface WellnessNutrition {
+  dailyCalorieTarget?: string;
+  macroSplit?: {
+    protein: string;
+    carbs: string;
+    fats: string;
+  };
+  meals?: WellnessMeal[];
+  foodsToInclude?: string[];
+  foodsToAvoid?: string[];
+  hydration?: string;
+  supplements?: string[];
+}
+
+export interface ExerciseRoutine {
+  day: string;
+  type: string;
+  duration: string;
+  exercises: string[];
+  intensity: string;
+  notes?: string;
+}
+
+export interface WellnessExercise {
+  weeklyGoal?: string;
+  restrictions?: string[];
+  routines?: ExerciseRoutine[];
+}
+
+export interface WellnessLifestyle {
+  sleepRecommendation?: string;
+  sleepTips?: string[];
+  stressManagement?: string[];
+  habits?: string[];
+}
+
+export interface WellnessMentalHealth {
+  recommendations?: string[];
+  activities?: string[];
+  warningSignsToWatch?: string[];
+}
+
+export type WellnessPlanStatus = "generating" | "completed" | "failed";
+
+export interface WellnessPlan {
+  _id: Id<"wellnessPlans">;
+  _creationTime: number;
+  patientClerkId: string;
+  generatedAt: string;
+  status: WellnessPlanStatus;
+  errorMessage?: string;
+  nutrition?: WellnessNutrition;
+  exercise?: WellnessExercise;
+  lifestyle?: WellnessLifestyle;
+  mentalWellness?: WellnessMentalHealth;
+  additionalNotes?: string;
+  reviewDate?: string;
+  aiConfidence?: string;
+  dataSources?: string[];
 }

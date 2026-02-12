@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useQuery, useMutation, useAction } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Send,
   MessageSquare,
+  MessageSquarePlus,
   History,
   FileText,
   FileX,
@@ -23,6 +24,7 @@ import {
   Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import { format, isToday, isYesterday } from "date-fns";
 import {
   DropdownMenu,
@@ -145,11 +147,11 @@ export function ChatWindow({
     : {};
 
   return (
-    <div className="flex h-full flex-col overflow-hidden rounded-2xl border bg-background/60 backdrop-blur-xl shadow-lg">
+    <div className="flex h-full flex-col overflow-hidden bg-background">
       {/* ── Header ── */}
-      <div className="flex items-center gap-3 border-b bg-background/80 px-4 py-3 backdrop-blur-sm">
+      <div className="flex items-center gap-3 border-b bg-background/80 px-4 py-2.5 backdrop-blur-sm shrink-0">
         <div className="relative">
-          <Avatar className="h-10 w-10 ring-2 ring-primary/20">
+          <Avatar className="h-9 w-9 ring-2 ring-primary/20">
             <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/5 text-primary text-sm font-semibold">
               {partnerInitials}
             </AvatarFallback>
@@ -175,11 +177,11 @@ export function ChatWindow({
 
       {/* ── Messages ── */}
       <div className="flex-1 overflow-y-auto" ref={scrollRef}>
-        <div className="mx-auto max-w-2xl space-y-1 p-4">
+        <div className="mx-auto max-w-3xl space-y-1 px-4 py-3">
           {!messages || messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-center text-muted-foreground">
-              <div className="mb-4 rounded-full bg-primary/10 p-4">
-                <MessageSquare className="h-8 w-8 text-primary/60" />
+            <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
+              <div className="mb-3 rounded-full bg-primary/10 p-3">
+                <MessageSquare className="h-7 w-7 text-primary/60" />
               </div>
               <p className="text-sm font-medium">Start a conversation</p>
               <p className="mt-1 text-xs text-muted-foreground/80">
@@ -249,9 +251,9 @@ export function ChatWindow({
       </div>
 
       {/* ── Input Area ── */}
-      <div className="border-t bg-background/80 px-4 py-3 backdrop-blur-sm">
-        <div className="mx-auto max-w-2xl">
-          <div className="flex items-end gap-2 rounded-2xl border bg-muted/30 p-2 transition-colors focus-within:border-primary/40 focus-within:bg-muted/50">
+      <div className="border-t bg-background px-6 py-4 shrink-0">
+        <div className="mx-auto max-w-3xl">
+          <div className="flex items-end gap-3 rounded-2xl border border-border/60 bg-muted/20 px-4 py-3 transition-all duration-200 focus-within:border-primary/50 focus-within:bg-background focus-within:shadow-lg focus-within:ring-1 focus-within:ring-primary/20">
             <textarea
               ref={textareaRef}
               value={message}
@@ -259,17 +261,17 @@ export function ChatWindow({
               onKeyDown={handleKeyDown}
               placeholder={`Message ${partnerName}...`}
               rows={1}
-              className="flex-1 resize-none bg-transparent px-2 py-1.5 text-sm placeholder:text-muted-foreground/60 focus-visible:outline-none"
+              className="flex-1 resize-none bg-transparent text-sm leading-relaxed placeholder:text-muted-foreground/50 focus-visible:outline-none"
             />
             <Button
               size="icon"
               onClick={handleSend}
               disabled={!message.trim()}
               className={cn(
-                "h-9 w-9 shrink-0 rounded-xl transition-all",
+                "h-9 w-9 shrink-0 rounded-xl transition-all duration-200",
                 message.trim()
-                  ? "bg-primary text-primary-foreground shadow-md hover:shadow-lg scale-100"
-                  : "bg-muted text-muted-foreground scale-95"
+                  ? "bg-primary text-primary-foreground shadow-md hover:shadow-lg hover:scale-105"
+                  : "bg-muted text-muted-foreground"
               )}
             >
               <Send className="h-4 w-4" />
@@ -736,24 +738,85 @@ export function ConversationList({
 interface AIChatWindowProps {
   currentUserId: string;
   selectedReportIds?: string[];
+  includeMemory?: boolean;
+  onConversationsChange?: (conversations: any[], activeId: string | null, handlers: {
+    newChat: () => void;
+    selectConversation: (id: string) => void;
+    deleteConversation: (id: string) => void;
+  }) => void;
 }
 
 export function AIChatWindow({
   currentUserId,
   selectedReportIds,
+  includeMemory = true,
+  onConversationsChange,
 }: AIChatWindowProps) {
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const messages = useQuery(
-    api.queries.aiChat.getMessages,
+  // Queries
+  const conversations = useQuery(
+    api.queries.aiChat.getConversations,
     currentUserId ? { userClerkId: currentUserId } : "skip"
   );
 
-  const chatWithAI = useAction(api.actions.aiChat.chat);
-  const clearHistory = useMutation(api.mutations.aiChat.clearHistory);
+  const messages = useQuery(
+    api.queries.aiChat.getMessages,
+    currentUserId && activeConversationId
+      ? { userClerkId: currentUserId, conversationId: activeConversationId }
+      : "skip"
+  );
+
+  const sendMessageMutation = useMutation(api.mutations.aiChat.sendMessage);
+  const createConversation = useMutation(api.mutations.aiChat.createConversation);
+  const deleteConversation = useMutation(api.mutations.aiChat.deleteConversation);
+
+  // Expose conversation data + handlers to parent for top-bar buttons
+  useEffect(() => {
+    if (onConversationsChange) {
+      onConversationsChange(
+        conversations ?? [],
+        activeConversationId,
+        {
+          newChat: handleNewChatInternal,
+          selectConversation: (id: string) => setActiveConversationId(id),
+          deleteConversation: handleDeleteConversationInternal,
+        }
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversations, activeConversationId]);
+
+  const handleNewChatInternal = async () => {
+    if (!currentUserId) return;
+    try {
+      const convId = await createConversation({
+        userClerkId: currentUserId,
+        title: "New Chat",
+      });
+      setActiveConversationId(convId);
+    } catch {
+      toast.error("Failed to create new chat.");
+    }
+  };
+
+  const handleDeleteConversationInternal = async (convId: string) => {
+    try {
+      await deleteConversation({
+        conversationId: convId as any,
+      });
+      if (activeConversationId === convId) {
+        setActiveConversationId(null);
+      }
+      toast.success("Conversation deleted.");
+    } catch {
+      toast.error("Failed to delete conversation.");
+    }
+  };
 
   // Auto-scroll
   useEffect(() => {
@@ -771,22 +834,49 @@ export function AIChatWindow({
     }
   }, [message]);
 
+  const handleNewChat = handleNewChatInternal;
+
+  const handleDeleteConversation = handleDeleteConversationInternal;
+
   const handleSend = async () => {
     const trimmed = message.trim();
     if (!trimmed || !currentUserId || isLoading) return;
+
+    let convId = activeConversationId;
+
+    // Auto-create conversation if none active
+    if (!convId) {
+      try {
+        const title = trimmed.length > 40 ? trimmed.slice(0, 40) + "..." : trimmed;
+        convId = await createConversation({
+          userClerkId: currentUserId,
+          title,
+        });
+        setActiveConversationId(convId);
+      } catch {
+        toast.error("Failed to start chat.");
+        return;
+      }
+    }
 
     setMessage("");
     if (textareaRef.current) textareaRef.current.style.height = "auto";
     setIsLoading(true);
 
     try {
-      await chatWithAI({
+      await sendMessageMutation({
         userClerkId: currentUserId,
         message: trimmed,
-        reportIds: selectedReportIds && selectedReportIds.length > 0 ? selectedReportIds : undefined,
+        conversationId: convId,
+        reportIds:
+          selectedReportIds && selectedReportIds.length > 0
+            ? selectedReportIds
+            : undefined,
+        useMemory: includeMemory,
       });
     } catch (error) {
       console.error("AI chat error:", error);
+      toast.error("Failed to send message. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -797,11 +887,6 @@ export function AIChatWindow({
       e.preventDefault();
       handleSend();
     }
-  };
-
-  const handleClearHistory = async () => {
-    if (!currentUserId) return;
-    await clearHistory({ userClerkId: currentUserId });
   };
 
   // Group messages by date
@@ -822,67 +907,47 @@ export function AIChatWindow({
       )
     : {};
 
-  return (
-    <div className="flex h-full flex-col overflow-hidden rounded-2xl border bg-background/60 backdrop-blur-xl shadow-lg">
-      {/* ── Header ── */}
-      <div className="flex items-center gap-3 border-b bg-background/80 px-4 py-3 backdrop-blur-sm">
-        <div className="relative">
-          <Avatar className="h-10 w-10 ring-2 ring-primary/20">
-            <AvatarFallback className="bg-gradient-to-br from-emerald-500/20 to-teal-500/10 text-emerald-600">
-              <Bot className="h-5 w-5" />
-            </AvatarFallback>
-          </Avatar>
-          <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-background bg-emerald-500" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <h3 className="truncate text-sm font-semibold">Medicare AI</h3>
-          <p className="text-xs text-muted-foreground">
-            Always available to help
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {selectedReportIds && selectedReportIds.length > 0 && (
-            <Badge
-              variant="secondary"
-              className="gap-1 text-xs bg-primary/10 text-primary border-primary/20"
-            >
-              <FileText className="h-3 w-3" />
-              {selectedReportIds.length} report{selectedReportIds.length > 1 ? "s" : ""} included
-            </Badge>
-          )}
-          {messages && messages.length > 0 && (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                    onClick={handleClearHistory}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Clear chat history</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          )}
-        </div>
-      </div>
+  // Quick suggestions for empty state
+  const quickSuggestions = [
+    { icon: "💊", text: "Explain my medications" },
+    { icon: "📋", text: "Summarize my latest report" },
+    { icon: "🩺", text: "What does my diagnosis mean?" },
+    { icon: "🥗", text: "Diet tips for my condition" },
+  ];
 
+  return (
+    <div className="flex h-full flex-col overflow-hidden bg-background">
       {/* ── Messages ── */}
       <div className="flex-1 overflow-y-auto" ref={scrollRef}>
-        <div className="mx-auto max-w-2xl space-y-1 p-4">
-          {!messages || messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-center text-muted-foreground">
-              <div className="mb-4 rounded-full bg-gradient-to-br from-emerald-500/10 to-teal-500/5 p-4">
-                <Sparkles className="h-8 w-8 text-emerald-500/60" />
+        <div className="mx-auto max-w-3xl space-y-1 px-4 py-3">
+          {!activeConversationId || !messages || messages.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500/20 via-teal-500/10 to-transparent shadow-inner">
+                <Sparkles className="h-10 w-10 text-emerald-500/70" />
               </div>
-              <p className="text-sm font-medium">Chat with Medicare AI</p>
-              <p className="mt-1 text-xs text-muted-foreground/80 max-w-sm">
-                Ask questions about your health, medications, or medical reports.
-                Toggle &quot;Include Reports&quot; to get insights from your uploaded reports.
+              <h2 className="text-lg font-semibold tracking-tight">
+                How can I help you today?
+              </h2>
+              <p className="mt-1 max-w-sm text-sm text-muted-foreground/80">
+                Ask about your health, medications, reports, or any medical
+                questions you have.
               </p>
+              {/* Quick Suggestions */}
+              <div className="mt-6 grid grid-cols-2 gap-2 w-full max-w-md">
+                {quickSuggestions.map((s) => (
+                  <button
+                    key={s.text}
+                    onClick={() => {
+                      setMessage(s.text);
+                      textareaRef.current?.focus();
+                    }}
+                    className="flex items-center gap-2.5 rounded-xl border bg-background/80 px-3.5 py-3 text-left text-sm transition-all hover:border-primary/30 hover:bg-primary/5 hover:shadow-sm"
+                  >
+                    <span className="text-lg">{s.icon}</span>
+                    <span className="text-muted-foreground">{s.text}</span>
+                  </button>
+                ))}
+              </div>
             </div>
           ) : (
             Object.entries(groupedMessages).map(([dateLabel, msgs]) => (
@@ -894,27 +959,25 @@ export function AIChatWindow({
                   </span>
                   <div className="h-px flex-1 bg-border/50" />
                 </div>
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {msgs.map((msg) => {
                     const isUser = msg.role === "user";
                     return (
                       <div
                         key={msg._id}
                         className={cn(
-                          "flex items-end gap-2",
+                          "flex items-end gap-2.5",
                           isUser ? "justify-end" : "justify-start"
                         )}
                       >
                         {!isUser && (
-                          <Avatar className="h-7 w-7 shrink-0 mb-5">
-                            <AvatarFallback className="bg-gradient-to-br from-emerald-500/20 to-teal-500/10 text-emerald-600">
-                              <Bot className="h-3.5 w-3.5" />
-                            </AvatarFallback>
-                          </Avatar>
+                          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 mb-5">
+                            <Sparkles className="h-3.5 w-3.5 text-white" />
+                          </div>
                         )}
                         <div
                           className={cn(
-                            "max-w-[70%] group",
+                            "max-w-[75%] group",
                             isUser ? "items-end" : "items-start"
                           )}
                         >
@@ -922,8 +985,8 @@ export function AIChatWindow({
                             className={cn(
                               "rounded-2xl px-4 py-2.5 shadow-sm transition-shadow hover:shadow-md",
                               isUser
-                                ? "bg-primary text-primary-foreground rounded-br-sm"
-                                : "bg-muted/80 rounded-bl-sm"
+                                ? "bg-primary text-primary-foreground rounded-br-md"
+                                : "bg-muted/60 border border-border/50 rounded-bl-md"
                             )}
                           >
                             <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
@@ -947,16 +1010,20 @@ export function AIChatWindow({
             ))
           )}
           {isLoading && (
-            <div className="flex items-end gap-2 justify-start">
-              <Avatar className="h-7 w-7 shrink-0 mb-5">
-                <AvatarFallback className="bg-gradient-to-br from-emerald-500/20 to-teal-500/10 text-emerald-600">
-                  <Bot className="h-3.5 w-3.5" />
-                </AvatarFallback>
-              </Avatar>
-              <div className="rounded-2xl bg-muted/80 rounded-bl-sm px-4 py-3">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Thinking...</span>
+            <div className="flex items-end gap-2.5 justify-start">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 mb-5">
+                <Sparkles className="h-3.5 w-3.5 text-white" />
+              </div>
+              <div className="rounded-2xl bg-muted/60 border border-border/50 rounded-bl-md px-4 py-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex gap-1">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500/60 animate-bounce [animation-delay:-0.3s]" />
+                    <span className="h-2 w-2 rounded-full bg-emerald-500/60 animate-bounce [animation-delay:-0.15s]" />
+                    <span className="h-2 w-2 rounded-full bg-emerald-500/60 animate-bounce" />
+                  </div>
+                  <span className="text-sm text-muted-foreground">
+                    Thinking...
+                  </span>
                 </div>
               </div>
             </div>
@@ -965,28 +1032,32 @@ export function AIChatWindow({
       </div>
 
       {/* ── Input Area ── */}
-      <div className="border-t bg-background/80 px-4 py-3 backdrop-blur-sm">
-        <div className="mx-auto max-w-2xl">
-          <div className="flex items-end gap-2 rounded-2xl border bg-muted/30 p-2 transition-colors focus-within:border-primary/40 focus-within:bg-muted/50">
+      <div className="border-t bg-background px-6 py-4 shrink-0">
+        <div className="mx-auto max-w-3xl">
+          <div className="flex items-end gap-3 rounded-2xl border border-border/60 bg-muted/20 px-4 py-3 transition-all duration-200 focus-within:border-primary/50 focus-within:bg-background focus-within:shadow-lg focus-within:ring-1 focus-within:ring-primary/20">
             <textarea
               ref={textareaRef}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask Medicare AI anything..."
+              placeholder={
+                activeConversationId
+                  ? "Type your message..."
+                  : "Start a new conversation..."
+              }
               rows={1}
               disabled={isLoading}
-              className="flex-1 resize-none bg-transparent px-2 py-1.5 text-sm placeholder:text-muted-foreground/60 focus-visible:outline-none disabled:opacity-50"
+              className="flex-1 resize-none bg-transparent text-sm leading-relaxed placeholder:text-muted-foreground/50 focus-visible:outline-none disabled:opacity-50"
             />
             <Button
               size="icon"
               onClick={handleSend}
               disabled={!message.trim() || isLoading}
               className={cn(
-                "h-9 w-9 shrink-0 rounded-xl transition-all",
+                "h-9 w-9 shrink-0 rounded-xl transition-all duration-200",
                 message.trim() && !isLoading
-                  ? "bg-primary text-primary-foreground shadow-md hover:shadow-lg scale-100"
-                  : "bg-muted text-muted-foreground scale-95"
+                  ? "bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md hover:shadow-lg hover:scale-105"
+                  : "bg-muted text-muted-foreground"
               )}
             >
               {isLoading ? (
@@ -996,8 +1067,9 @@ export function AIChatWindow({
               )}
             </Button>
           </div>
-          <p className="mt-2 text-center text-[10px] text-muted-foreground/50">
-            AI responses are informational only. Always consult your doctor for medical advice.
+          <p className="mt-2 text-center text-[10px] text-muted-foreground/40">
+            AI responses are informational only. Always consult your doctor for
+            medical advice.
           </p>
         </div>
       </div>

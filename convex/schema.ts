@@ -40,12 +40,40 @@ export default defineSchema({
     doctorClerkId: v.string(),
     dateTime: v.string(), // ISO string
     status: v.string(), // "scheduled" | "completed" | "cancelled"
+    type: v.optional(v.string()), // "offline" | "online" — defaults to "offline" for backward compat
     notes: v.optional(v.string()),
     sharedReportIds: v.optional(v.array(v.id("reports"))), // Reports shared with doctor for this appointment
   })
     .index("by_doctorClerkId", ["doctorClerkId"])
     .index("by_patientClerkId", ["patientClerkId"])
     .index("by_status", ["status"]),
+
+  // ===== Video Rooms for Online Appointments =====
+  videoRooms: defineTable({
+    appointmentId: v.id("appointments"),
+    roomId: v.string(), // Unique room identifier
+    doctorClerkId: v.string(),
+    patientClerkId: v.string(),
+    status: v.string(), // "waiting" | "active" | "ended"
+    doctorJoinedAt: v.optional(v.string()),
+    patientJoinedAt: v.optional(v.string()),
+    endedAt: v.optional(v.string()),
+    duration: v.optional(v.number()), // Duration in seconds
+  })
+    .index("by_appointmentId", ["appointmentId"])
+    .index("by_roomId", ["roomId"])
+    .index("by_doctorClerkId", ["doctorClerkId"])
+    .index("by_patientClerkId", ["patientClerkId"]),
+
+  // ===== Video Room Signaling (WebRTC) =====
+  videoRoomSignals: defineTable({
+    roomId: v.string(),
+    senderClerkId: v.string(),
+    signal: v.string(), // JSON stringified WebRTC signaling data
+    createdAt: v.number(),
+  })
+    .index("by_roomId", ["roomId"])
+    .index("by_senderClerkId", ["senderClerkId"]),
 
   sessions: defineTable({
     appointmentId: v.id("appointments"),
@@ -57,6 +85,8 @@ export default defineSchema({
     keyDecisions: v.optional(v.array(v.string())),
     prescriptions: v.optional(v.string()),
     supermemoryDocId: v.optional(v.string()), // Supermemory document ID for this session
+    processingStatus: v.optional(v.string()), // "processing" | "completed" | "failed"
+    errorMessage: v.optional(v.string()), // Error details for failed processing
   })
     .index("by_appointmentId", ["appointmentId"])
     .index("by_patientClerkId", ["patientClerkId"])
@@ -66,9 +96,13 @@ export default defineSchema({
     patientClerkId: v.string(),
     doctorClerkId: v.optional(v.string()), // null if patient uploads before seeing doctor
     fileStorageId: v.id("_storage"),
+    additionalFileStorageIds: v.optional(v.array(v.id("_storage"))), // extra pages of same report
     fileName: v.string(),
-    fileType: v.string(), // "pdf" | "image"
+    fileType: v.union(v.literal("pdf"), v.literal("image")), // enforced file type
+    fileSize: v.optional(v.number()), // file size in bytes
+    totalPages: v.optional(v.number()), // total number of files/pages in this report
     aiSummary: v.optional(v.string()),
+    analysisStatus: v.optional(v.string()), // "pending" | "analyzing" | "completed" | "failed"
     criticalFlags: v.optional(
       v.array(
         v.object({
@@ -78,6 +112,8 @@ export default defineSchema({
         })
       )
     ),
+    recommendations: v.optional(v.array(v.string())),
+    preDiagnosisInsights: v.optional(v.string()),
     supermemoryDocId: v.optional(v.string()),
   })
     .index("by_patientClerkId", ["patientClerkId"])
@@ -91,6 +127,8 @@ export default defineSchema({
     reportIds: v.array(v.id("reports")),
     aiConsolidatedSummary: v.optional(v.string()),
     status: v.string(), // "pending" | "viewed"
+    processingStatus: v.optional(v.string()), // "processing" | "completed" | "failed"
+    errorMessage: v.optional(v.string()), // Error details for failed processing
   })
     .index("by_toDoctorClerkId", ["toDoctorClerkId"])
     .index("by_patientClerkId", ["patientClerkId"]),
@@ -109,8 +147,19 @@ export default defineSchema({
   // ===== AI Chat Messages =====
   aiChatMessages: defineTable({
     userClerkId: v.string(),
+    conversationId: v.optional(v.string()), // groups messages into conversations
     role: v.string(), // "user" | "assistant"
     content: v.string(),
+  })
+    .index("by_userClerkId", ["userClerkId"])
+    .index("by_conversationId", ["conversationId"]),
+
+  // ===== AI Chat Conversations =====
+  aiChatConversations: defineTable({
+    userClerkId: v.string(),
+    title: v.string(), // auto-generated from first message
+    lastMessageTime: v.number(),
+    messageCount: v.number(),
   }).index("by_userClerkId", ["userClerkId"]),
 
   // ===== Patient Vitals =====
@@ -143,4 +192,109 @@ export default defineSchema({
     .index("by_doctorClerkId", ["doctorClerkId"])
     .index("by_patientClerkId", ["patientClerkId"])
     .index("by_status", ["doctorClerkId", "status"]),
+
+  // ===== AI Wellness Plans =====
+  wellnessPlans: defineTable({
+    patientClerkId: v.string(),
+    generatedAt: v.string(),
+    status: v.string(), // "generating" | "completed" | "failed"
+    errorMessage: v.optional(v.string()),
+
+    // Nutrition Plan
+    nutrition: v.optional(
+      v.object({
+        dailyCalorieTarget: v.optional(v.string()),
+        macroSplit: v.optional(
+          v.object({
+            protein: v.string(),
+            carbs: v.string(),
+            fats: v.string(),
+          })
+        ),
+        meals: v.optional(
+          v.array(
+            v.object({
+              name: v.string(),
+              time: v.string(),
+              items: v.array(v.string()),
+              notes: v.optional(v.string()),
+            })
+          )
+        ),
+        foodsToInclude: v.optional(v.array(v.string())),
+        foodsToAvoid: v.optional(v.array(v.string())),
+        hydration: v.optional(v.string()),
+        supplements: v.optional(v.array(v.string())),
+      })
+    ),
+
+    // Exercise Plan
+    exercise: v.optional(
+      v.object({
+        weeklyGoal: v.optional(v.string()),
+        restrictions: v.optional(v.array(v.string())),
+        routines: v.optional(
+          v.array(
+            v.object({
+              day: v.string(),
+              type: v.string(),
+              duration: v.string(),
+              exercises: v.array(v.string()),
+              intensity: v.string(),
+              notes: v.optional(v.string()),
+            })
+          )
+        ),
+      })
+    ),
+
+    // Lifestyle Recommendations
+    lifestyle: v.optional(
+      v.object({
+        sleepRecommendation: v.optional(v.string()),
+        sleepTips: v.optional(v.array(v.string())),
+        stressManagement: v.optional(v.array(v.string())),
+        habits: v.optional(v.array(v.string())),
+      })
+    ),
+
+    // Mental Wellness
+    mentalWellness: v.optional(
+      v.object({
+        recommendations: v.optional(v.array(v.string())),
+        activities: v.optional(v.array(v.string())),
+        warningSignsToWatch: v.optional(v.array(v.string())),
+      })
+    ),
+
+    // Metadata
+    additionalNotes: v.optional(v.string()),
+    reviewDate: v.optional(v.string()),
+    aiConfidence: v.optional(v.string()),
+    dataSources: v.optional(v.array(v.string())),
+  }).index("by_patientClerkId", ["patientClerkId"]),
+
+  // ===== In-Platform Notifications =====
+  notifications: defineTable({
+    userClerkId: v.string(),
+    type: v.string(), // "appointment_reminder_24h" | "appointment_reminder_1h"
+    title: v.string(),
+    message: v.string(),
+    read: v.boolean(),
+    appointmentId: v.optional(v.id("appointments")),
+    link: v.optional(v.string()),
+  })
+    .index("by_userClerkId", ["userClerkId"])
+    .index("by_userClerkId_read", ["userClerkId", "read"]),
+
+  // ===== Reminder Tracking (prevents duplicate sends) =====
+  remindersSent: defineTable({
+    appointmentId: v.id("appointments"),
+    userClerkId: v.string(),
+    type: v.string(), // "24h" | "1h"
+    channel: v.string(), // "in_app" | "email"
+    sentAt: v.string(), // ISO string
+  })
+    .index("by_appointmentId", ["appointmentId"])
+    .index("by_appointment_user_type", ["appointmentId", "userClerkId", "type"]),
 });

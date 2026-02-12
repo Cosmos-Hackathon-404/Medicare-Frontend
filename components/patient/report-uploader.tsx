@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Upload, FileText, Image, X, Loader2, CheckCircle2, Globe } from "lucide-react";
+import { Upload, FileText, Image, X, Loader2, CheckCircle2, Globe, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const LANGUAGES = [
@@ -31,21 +31,46 @@ const LANGUAGES = [
   "Urdu",
 ] as const;
 
+const MAX_FILE_SIZE_MB = 20;
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+
+type UploadStep = "idle" | "uploading" | "creating" | "analyzing" | "complete" | "error";
+
+const STEP_PROGRESS: Record<UploadStep, number> = {
+  idle: 0,
+  uploading: 30,
+  creating: 50,
+  analyzing: 75,
+  complete: 100,
+  error: 0,
+};
+
+const STEP_LABELS: Record<UploadStep, string> = {
+  idle: "",
+  uploading: "Uploading file...",
+  creating: "Creating report record...",
+  analyzing: "AI analyzing report...",
+  complete: "Complete!",
+  error: "Upload failed",
+};
+
 interface ReportUploaderProps {
   onUpload: (file: File, fileType: "pdf" | "image", language?: string) => Promise<void>;
   isUploading?: boolean;
   className?: string;
+  uploadStep?: UploadStep;
 }
 
 export function ReportUploader({
   onUpload,
   isUploading,
   className,
+  uploadStep = "idle",
 }: ReportUploaderProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [dragActive, setDragActive] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
   const [selectedLanguage, setSelectedLanguage] = useState<string>("English");
+  const [fileError, setFileError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const acceptedTypes = [
@@ -55,6 +80,16 @@ export function ReportUploader({
     "image/jpg",
     "image/webp",
   ];
+
+  const validateFile = useCallback((file: File): string | null => {
+    if (!acceptedTypes.includes(file.type)) {
+      return "Unsupported file type. Please upload PDF, PNG, JPG, or WEBP.";
+    }
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      return `File is too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Maximum size is ${MAX_FILE_SIZE_MB}MB.`;
+    }
+    return null;
+  }, []);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -70,39 +105,42 @@ export function ReportUploader({
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
+    setFileError(null);
 
     const file = e.dataTransfer.files?.[0];
-    if (file && acceptedTypes.includes(file.type)) {
+    if (file) {
+      const error = validateFile(file);
+      if (error) {
+        setFileError(error);
+        return;
+      }
       setSelectedFile(file);
     }
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFileError(null);
     const file = e.target.files?.[0];
-    if (file && acceptedTypes.includes(file.type)) {
+    if (file) {
+      const error = validateFile(file);
+      if (error) {
+        setFileError(error);
+        return;
+      }
       setSelectedFile(file);
     }
   };
 
   const handleUpload = async () => {
     if (!selectedFile) return;
-
     const fileType = selectedFile.type === "application/pdf" ? "pdf" : "image";
-
-    // Simulate progress for UX
-    const progressInterval = setInterval(() => {
-      setUploadProgress((prev) => Math.min(prev + 10, 90));
-    }, 200);
-
     try {
       await onUpload(selectedFile, fileType, selectedLanguage);
-      setUploadProgress(100);
       setTimeout(() => {
         setSelectedFile(null);
-        setUploadProgress(0);
       }, 1000);
-    } finally {
-      clearInterval(progressInterval);
+    } catch {
+      // Error handled by parent
     }
   };
 
@@ -114,6 +152,9 @@ export function ReportUploader({
       <Image className="h-10 w-10 text-blue-500" aria-label="Upload image" />
     );
   };
+
+  const currentProgress = STEP_PROGRESS[isUploading ? uploadStep : "idle"];
+  const currentLabel = STEP_LABELS[isUploading ? uploadStep : "idle"];
 
   return (
     <Card className={cn("overflow-hidden", className)}>
@@ -133,34 +174,44 @@ export function ReportUploader({
         />
 
         {!selectedFile ? (
-          <div
-            className={cn(
-              "flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-8 transition-colors",
-              dragActive
-                ? "border-primary bg-primary/5"
-                : "border-muted-foreground/25 hover:border-primary/50"
-            )}
-            onDragEnter={handleDrag}
-            onDragLeave={handleDrag}
-            onDragOver={handleDrag}
-            onDrop={handleDrop}
-          >
-            <Upload className="mb-4 h-12 w-12 text-muted-foreground" />
-            <p className="mb-2 text-center font-medium">
-              Drag & drop your report here
-            </p>
-            <p className="mb-4 text-center text-sm text-muted-foreground">
-              or click to browse files
-            </p>
-            <Button
-              variant="outline"
-              onClick={() => fileInputRef.current?.click()}
+          <div className="space-y-3">
+            <div
+              className={cn(
+                "flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-8 transition-colors",
+                dragActive
+                  ? "border-primary bg-primary/5"
+                  : "border-muted-foreground/25 hover:border-primary/50"
+              )}
+              onDragEnter={handleDrag}
+              onDragLeave={handleDrag}
+              onDragOver={handleDrag}
+              onDrop={handleDrop}
             >
-              Select File
-            </Button>
-            <p className="mt-4 text-xs text-muted-foreground">
-              Supported: PDF, PNG, JPG, WEBP
-            </p>
+              <Upload className="mb-4 h-12 w-12 text-muted-foreground" />
+              <p className="mb-2 text-center font-medium">
+                Drag & drop your report here
+              </p>
+              <p className="mb-4 text-center text-sm text-muted-foreground">
+                or click to browse files
+              </p>
+              <Button
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                Select File
+              </Button>
+              <p className="mt-4 text-xs text-muted-foreground">
+                Supported: PDF, PNG, JPG, WEBP &middot; Max {MAX_FILE_SIZE_MB}MB
+              </p>
+            </div>
+
+            {/* File error */}
+            {fileError && (
+              <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                {fileError}
+              </div>
+            )}
           </div>
         ) : (
           <div className="space-y-4">
@@ -177,7 +228,10 @@ export function ReportUploader({
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => setSelectedFile(null)}
+                  onClick={() => {
+                    setSelectedFile(null);
+                    setFileError(null);
+                  }}
                 >
                   <X className="h-4 w-4" />
                 </Button>
@@ -207,15 +261,43 @@ export function ReportUploader({
               </p>
             </div>
 
-            {/* Upload Progress */}
+            {/* Multi-Step Upload Progress */}
             {isUploading && (
-              <div className="space-y-2">
-                <Progress value={uploadProgress} className="h-2" />
-                <p className="text-center text-sm text-muted-foreground">
-                  {uploadProgress < 100
-                    ? "Uploading and analyzing..."
-                    : "Complete!"}
-                </p>
+              <div className="space-y-3">
+                <Progress value={currentProgress} className="h-2" />
+                <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                  {uploadStep === "complete" ? (
+                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  ) : uploadStep === "error" ? (
+                    <AlertCircle className="h-4 w-4 text-destructive" />
+                  ) : (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  )}
+                  {currentLabel}
+                </div>
+                {/* Step indicators */}
+                <div className="flex justify-between px-1">
+                  {(["uploading", "creating", "analyzing"] as const).map((step, i) => {
+                    const stepOrder = ["uploading", "creating", "analyzing"];
+                    const currentIdx = stepOrder.indexOf(uploadStep);
+                    const isActive = stepOrder.indexOf(step) <= currentIdx;
+                    return (
+                      <div
+                        key={step}
+                        className={cn(
+                          "flex items-center gap-1 text-xs",
+                          isActive ? "text-primary" : "text-muted-foreground/50"
+                        )}
+                      >
+                        <div className={cn(
+                          "h-2 w-2 rounded-full",
+                          isActive ? "bg-primary" : "bg-muted-foreground/30"
+                        )} />
+                        {["Upload", "Create", "Analyze"][i]}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
 
@@ -224,7 +306,10 @@ export function ReportUploader({
               <Button
                 variant="outline"
                 className="flex-1"
-                onClick={() => setSelectedFile(null)}
+                onClick={() => {
+                  setSelectedFile(null);
+                  setFileError(null);
+                }}
                 disabled={isUploading}
               >
                 Cancel
@@ -238,11 +323,6 @@ export function ReportUploader({
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
                     Processing...
-                  </>
-                ) : uploadProgress === 100 ? (
-                  <>
-                    <CheckCircle2 className="h-4 w-4" />
-                    Done
                   </>
                 ) : (
                   <>

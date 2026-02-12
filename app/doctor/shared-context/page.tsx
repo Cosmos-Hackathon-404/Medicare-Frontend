@@ -6,6 +6,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -94,6 +95,7 @@ function SharedContextDetail({ context }: { context: SharedContext }) {
               </div>
             ) : (
               sessionDetails.map((session, i) => {
+                if (!session) return null;
                 let parsed: { chiefComplaint?: string; diagnosis?: string; chief_complaint?: string } | null = null;
                 if (session.aiSummary) {
                   try { parsed = JSON.parse(session.aiSummary); } catch { /* ignore */ }
@@ -153,7 +155,9 @@ function SharedContextDetail({ context }: { context: SharedContext }) {
                 ))}
               </div>
             ) : (
-              reportDetails.map((report, i) => (
+              reportDetails.map((report, i) => {
+                if (!report) return null;
+                return (
                 <div key={report._id} className="rounded-lg border p-4 space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-sm font-medium">
@@ -174,7 +178,7 @@ function SharedContextDetail({ context }: { context: SharedContext }) {
                       {report.criticalFlags.map((flag, j) => (
                         <div key={j} className="flex items-center gap-1 text-xs">
                           <AlertTriangle className={`h-3 w-3 ${
-                            flag.severity === "high" ? "text-red-500" : flag.severity === "medium" ? "text-orange-500" : "text-yellow-500"
+                            flag.severity === "high" ? "text-red-600 dark:text-red-400" : flag.severity === "medium" ? "text-orange-600 dark:text-orange-400" : "text-yellow-600 dark:text-yellow-400"
                           }`} />
                           <span className="font-medium">{flag.issue}</span>
                           <span className="text-muted-foreground">({flag.severity})</span>
@@ -183,7 +187,8 @@ function SharedContextDetail({ context }: { context: SharedContext }) {
                     </div>
                   )}
                 </div>
-              ))
+                );
+              })
             )}
           </div>
         </ScrollArea>
@@ -204,6 +209,17 @@ export default function SharedContextPage() {
   const sharedContexts = useQuery(
     api.queries.sharedContexts.getForDoctor,
     doctorClerkId ? { doctorClerkId } : "skip"
+  );
+
+  // Resolve names
+  const allPatients = useQuery(api.queries.patients.getAll);
+  const allDoctors = useQuery(api.queries.doctors.getAll);
+
+  const patientNameMap = new Map(
+    allPatients?.map((p) => [p.clerkUserId, p.name]) ?? []
+  );
+  const doctorNameMap = new Map(
+    allDoctors?.map((d) => [d.clerkUserId, d.name]) ?? []
   );
 
   // Mutations
@@ -264,7 +280,7 @@ export default function SharedContextPage() {
         <Card className={pendingCount > 0 ? "border-orange-500/30 bg-orange-500/5" : ""}>
           <CardContent className="flex items-center gap-4 p-4">
             <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${pendingCount > 0 ? "bg-orange-500/20" : "bg-muted"}`}>
-              <Clock className={`h-5 w-5 ${pendingCount > 0 ? "text-orange-500" : "text-muted-foreground"}`} />
+              <Clock className={`h-5 w-5 ${pendingCount > 0 ? "text-orange-600 dark:text-orange-400" : "text-muted-foreground"}`} />
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Pending Review</p>
@@ -332,14 +348,16 @@ export default function SharedContextPage() {
                         <User
                           className={`h-5 w-5 ${
                             context.status === "pending"
-                              ? "text-orange-500"
+                              ? "text-orange-600 dark:text-orange-400"
                               : "text-muted-foreground"
                           }`}
                         />
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <p className="font-medium">Patient Context</p>
+                          <p className="font-medium">
+                            {patientNameMap.get(context.patientClerkId) ?? "Patient"}
+                          </p>
                           <Badge
                             variant={
                               context.status === "pending"
@@ -357,6 +375,8 @@ export default function SharedContextPage() {
                           </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground">
+                          From Dr. {doctorNameMap.get(context.fromDoctorClerkId) ?? "Unknown"}
+                          {" · "}
                           {format(
                             new Date(context._creationTime),
                             "MMMM d, yyyy"
@@ -381,13 +401,11 @@ export default function SharedContextPage() {
                 ))}
             </div>
           ) : (
-            <div className="py-12 text-center text-muted-foreground">
-              <Inbox className="mx-auto mb-3 h-12 w-12 opacity-40" />
-              <p className="font-medium">No shared contexts yet</p>
-              <p className="text-sm">
-                Patient contexts shared with you will appear here.
-              </p>
-            </div>
+            <EmptyState
+              icon={Inbox}
+              title="No shared contexts yet"
+              description="Patient contexts shared with you will appear here."
+            />
           )}
         </CardContent>
       </Card>
@@ -403,8 +421,11 @@ export default function SharedContextPage() {
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <User className="h-5 w-5" />
-                  Patient Medical Context
+                  {patientNameMap.get(selectedContext.patientClerkId) ?? "Patient"} — Medical Context
                 </DialogTitle>
+                <p className="text-sm text-muted-foreground">
+                  Shared by Dr. {doctorNameMap.get(selectedContext.fromDoctorClerkId) ?? "Unknown"}
+                </p>
               </DialogHeader>
               <SharedContextDetail context={selectedContext} />
             </>

@@ -4,6 +4,7 @@ import { useUser } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -15,11 +16,13 @@ import {
   AlertTriangle,
   ArrowRight,
   CheckCircle2,
+  Mic,
 } from "lucide-react";
 import Link from "next/link";
 import { format, isToday, parseISO } from "date-fns";
 import type { Appointment } from "@/types";
 import { CriticalAlertBanner } from "@/components/doctor/critical-alert-banner";
+import { StatsCard } from "@/components/shared/stats-card";
 
 export default function DoctorDashboardPage() {
   const { user } = useUser();
@@ -73,27 +76,32 @@ export default function DoctorDashboardPage() {
         <StatsCard
           icon={Calendar}
           title="Today's Appointments"
-          value={isLoading ? undefined : todayAppointments.length}
+          value={todayAppointments.length}
           description="Scheduled for today"
+          isLoading={isLoading}
         />
         <StatsCard
           icon={Users}
           title="Total Patients"
-          value={isLoading ? undefined : uniquePatients}
+          value={uniquePatients}
           description="Unique patients"
+          isLoading={isLoading}
         />
         <StatsCard
           icon={CheckCircle2}
           title="Completed Sessions"
-          value={isLoading ? undefined : completedCount}
+          value={completedCount}
           description="All time"
+          variant="green"
+          isLoading={isLoading}
         />
         <StatsCard
           icon={FileText}
           title="Pending Reviews"
-          value={isLoading ? undefined : pendingContexts}
+          value={pendingContexts}
           description="Shared contexts"
           highlight={pendingContexts > 0}
+          isLoading={isLoading}
         />
       </div>
 
@@ -125,10 +133,11 @@ export default function DoctorDashboardPage() {
                 ))}
               </div>
             ) : (
-              <div className="py-8 text-center text-muted-foreground">
-                <Calendar className="mx-auto mb-3 h-10 w-10 opacity-40" />
-                <p>No appointments scheduled for today.</p>
-              </div>
+              <EmptyState
+                icon={Calendar}
+                title="No appointments scheduled for today."
+                size="sm"
+              />
             )}
           </CardContent>
         </Card>
@@ -167,10 +176,11 @@ export default function DoctorDashboardPage() {
                   ))}
               </div>
             ) : (
-              <div className="py-8 text-center text-muted-foreground">
-                <Clock className="mx-auto mb-3 h-10 w-10 opacity-40" />
-                <p>No upcoming appointments.</p>
-              </div>
+              <EmptyState
+                icon={Clock}
+                title="No upcoming appointments."
+                size="sm"
+              />
             )}
           </CardContent>
         </Card>
@@ -180,7 +190,7 @@ export default function DoctorDashboardPage() {
           <Card className="border-orange-500/30 bg-orange-500/5 lg:col-span-2">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="flex items-center gap-2 text-lg font-medium">
-                <AlertTriangle className="h-5 w-5 text-orange-500" />
+                <AlertTriangle className="h-5 w-5 text-orange-600 dark:text-orange-400" />
                 Pending Patient Contexts
               </CardTitle>
               <Link href="/doctor/shared-context">
@@ -203,46 +213,7 @@ export default function DoctorDashboardPage() {
   );
 }
 
-function StatsCard({
-  icon: Icon,
-  title,
-  value,
-  description,
-  highlight,
-}: {
-  icon: typeof Calendar;
-  title: string;
-  value?: number;
-  description: string;
-  highlight?: boolean;
-}) {
-  return (
-    <Card className={highlight ? "border-orange-500/30 bg-orange-500/5" : ""}>
-      <CardContent className="p-6">
-        <div className="flex items-center gap-4">
-          <div
-            className={`flex h-12 w-12 items-center justify-center rounded-lg ${
-              highlight ? "bg-orange-500/20" : "bg-primary/10"
-            }`}
-          >
-            <Icon
-              className={`h-6 w-6 ${highlight ? "text-orange-500" : "text-primary"}`}
-            />
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">{title}</p>
-            {value === undefined ? (
-              <Skeleton className="mt-1 h-7 w-12" />
-            ) : (
-              <p className="text-2xl font-bold">{value}</p>
-            )}
-            <p className="text-xs text-muted-foreground">{description}</p>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
+
 
 function AppointmentItem({
   appointment,

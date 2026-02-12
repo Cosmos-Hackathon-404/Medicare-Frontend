@@ -24,27 +24,26 @@ export const chat = action({
   args: {
     userClerkId: v.string(),
     message: v.string(),
+    conversationId: v.optional(v.string()),
     reportIds: v.optional(v.array(v.string())),
+    useMemory: v.optional(v.boolean()),
   },
   handler: async (ctx, args): Promise<string> => {
     const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_GEMINI_API_KEY! });
+    const useMemory = args.useMemory ?? true;
 
-    // Save user message
-    await ctx.runMutation(api.mutations.aiChat.saveMessage, {
-      userClerkId: args.userClerkId,
-      role: "user",
-      content: args.message,
-    });
+    try {
 
-    // Get chat history for context
+    // Get chat history for context (user message already saved by sendMessage mutation)
     const history = await ctx.runQuery(api.queries.aiChat.getMessages, {
       userClerkId: args.userClerkId,
+      conversationId: args.conversationId,
     });
 
-    // Build context with optional report data
+    // Build context with optional report data (only when memory is ON)
     let contextStr = "";
 
-    if (args.reportIds && args.reportIds.length > 0) {
+    if (useMemory && args.reportIds && args.reportIds.length > 0) {
       // Fetch only selected reports
       const allReports = await ctx.runQuery(api.queries.reports.getByPatient, {
         patientClerkId: args.userClerkId,
@@ -73,32 +72,28 @@ export const chat = action({
       }
     }
 
-    // Get patient profile for context
-    const patient = await ctx.runQuery(api.queries.patients.getByClerkId, {
-      clerkUserId: args.userClerkId,
-    });
+    // Get patient profile for context (only when memory is ON)
+    if (useMemory) {
+      const patient = await ctx.runQuery(api.queries.patients.getByClerkId, {
+        clerkUserId: args.userClerkId,
+      });
 
-    if (patient) {
-      contextStr += `\n\nPATIENT INFO:\nName: ${patient.name}\nAge: ${patient.age}\nBlood Group: ${patient.bloodGroup ?? "Unknown"}\nAllergies: ${patient.allergies ?? "None reported"}`;
+      if (patient) {
+        contextStr += `\n\nPATIENT INFO:\nName: ${patient.name}\nAge: ${patient.age}\nBlood Group: ${patient.bloodGroup ?? "Unknown"}\nAllergies: ${patient.allergies ?? "None reported"}`;
+      }
     }
 
     const systemPrompt = AI_CHAT_SYSTEM_PROMPT.replace("{context}", contextStr);
 
-    // Build conversation history for Gemini
+    // Build conversation history for Gemini (already includes the latest user message from DB)
     const conversationHistory = history.slice(-20).map((msg: { role: string; content: string }) => ({
       role: msg.role === "user" ? ("user" as const) : ("model" as const),
       parts: [{ text: msg.content }],
     }));
 
-    // Add current message
-    conversationHistory.push({
-      role: "user" as const,
-      parts: [{ text: args.message }],
-    });
-
     // Call Gemini
     const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
+      model: "gemini-3-flash-preview",
       contents: conversationHistory,
       config: {
         systemInstruction: systemPrompt,
@@ -114,10 +109,23 @@ export const chat = action({
     // Save AI response
     await ctx.runMutation(api.mutations.aiChat.saveMessage, {
       userClerkId: args.userClerkId,
+      conversationId: args.conversationId,
       role: "assistant",
       content: aiResponse,
     });
 
     return aiResponse;
+
+    } catch (error) {
+      // Save error message so the user sees it in chat
+      const errorMessage = "I'm sorry, something went wrong while processing your message. Please try again.";
+      await ctx.runMutation(api.mutations.aiChat.saveMessage, {
+        userClerkId: args.userClerkId,
+        conversationId: args.conversationId,
+        role: "assistant",
+        content: errorMessage,
+      });
+      throw error;
+    }
   },
 });

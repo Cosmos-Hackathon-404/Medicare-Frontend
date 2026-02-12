@@ -1,8 +1,8 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useState, useRef, useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
-import { useQuery, useMutation, useAction } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,6 +30,7 @@ import {
   Share2,
   ExternalLink,
   AlertTriangle,
+  Loader2,
 } from "lucide-react";
 import Link from "next/link";
 import { format, parseISO } from "date-fns";
@@ -92,9 +93,8 @@ export default function SessionPage({
 
   // Mutations & Actions
   const generateUploadUrl = useMutation(api.mutations.sessions.generateUploadUrl);
-  const createSession = useMutation(api.mutations.sessions.create);
+  const createAndProcess = useMutation(api.mutations.sessions.createAndProcess);
   const updateSession = useMutation(api.mutations.sessions.update);
-  const summarizeSession = useAction(api.actions.summarizeSession.summarizeSession);
 
   const isLoading = appointment === undefined;
 
@@ -113,32 +113,38 @@ export default function SessionPage({
       });
       const { storageId } = await uploadResponse.json();
 
-      // Step 2: Create session record
-      toast.info("Processing with AI...");
-      const sessionId = await createSession({
+      // Step 2: Create session + schedule AI summarization as background job
+      await createAndProcess({
         appointmentId: appointmentId as Id<"appointments">,
         patientClerkId: appointment.patientClerkId,
         doctorClerkId,
         audioStorageId: storageId,
       });
 
-      // Step 3: Run AI summarization
-      await summarizeSession({
-        sessionId,
-        appointmentId: appointmentId as Id<"appointments">,
-        audioStorageId: storageId,
-        patientClerkId: appointment.patientClerkId,
-        doctorClerkId,
-      });
-
-      toast.success("Session processed successfully!");
+      toast.success("Audio uploaded! AI processing is running in the background.");
     } catch (error) {
-      console.error("Failed to process session:", error);
+      console.error("Failed to upload and schedule session processing:", error);
       toast.error("Failed to process session. Please try again.");
     } finally {
       setIsProcessing(false);
     }
   };
+
+  // Track session processing status changes to show toast notifications
+  const prevProcessingStatusRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!session) return;
+    const prev = prevProcessingStatusRef.current;
+    const current = session.processingStatus ?? null;
+    if (prev && prev !== current) {
+      if (current === "completed") {
+        toast.success("Session AI processing complete!");
+      } else if (current === "failed") {
+        toast.error("Session processing failed. Please try again.");
+      }
+    }
+    prevProcessingStatusRef.current = current;
+  }, [session]);
 
   const handleSaveSummary = async (updatedSummary: AISummary) => {
     if (!session) return;
@@ -260,6 +266,12 @@ export default function SessionPage({
           {isCompleted && <CheckCircle2 className="h-3.5  w-3.5" />}
           {appointment.status}
         </Badge>
+        {appointment.type === "online" && (
+          <Badge className="gap-1 text-sm bg-blue-600 ml-2">
+            <span className="h-3.5 w-3.5">🎥</span>
+            Video Call
+          </Badge>
+        )}
       </div>
 
       {/* Main Content */}
@@ -272,6 +284,44 @@ export default function SessionPage({
               onRecordingComplete={handleRecordingComplete}
               isUploading={isProcessing}
             />
+          )}
+
+          {/* Processing Status Banner */}
+          {session?.processingStatus && session.processingStatus !== "completed" && (
+            <Card className={`border-l-4 ${
+              session.processingStatus === "failed" 
+                ? "border-l-destructive bg-destructive/5" 
+                : "border-l-primary bg-primary/5"
+            }`}>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  {session.processingStatus === "processing" ? (
+                    <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                  ) : (
+                    <AlertTriangle className="h-5 w-5 text-destructive" />
+                  )}
+                  <div className="flex-1">
+                    <p className="font-medium text-sm">
+                      {session.processingStatus === "processing"
+                        ? "AI is processing your session..."
+                        : "Processing failed"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {session.processingStatus === "processing"
+                        ? "Transcribing audio and generating AI summary. This may take a minute."
+                        : session.errorMessage ?? "An error occurred during processing. Please try recording again."}
+                    </p>
+                  </div>
+                  {session.processingStatus === "processing" && (
+                    <div className="flex gap-1">
+                      <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+                      <div className="h-2 w-2 rounded-full bg-primary animate-pulse [animation-delay:0.2s]" />
+                      <div className="h-2 w-2 rounded-full bg-primary animate-pulse [animation-delay:0.4s]" />
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           )}
 
           {/* Audio Player */}
@@ -418,9 +468,9 @@ export default function SessionPage({
                       >
                         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted">
                           {report.fileType === "pdf" ? (
-                            <FileText className="h-5 w-5 text-red-500" />
+                            <FileText className="h-5 w-5 text-red-600 dark:text-red-400" />
                           ) : (
-                            <ImageIcon className="h-5 w-5 text-blue-500" />
+                            <ImageIcon className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                           )}
                         </div>
                         <div className="flex-1 min-w-0">

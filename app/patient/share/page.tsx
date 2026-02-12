@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
-import { useQuery, useAction } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -52,9 +52,9 @@ export default function ShareContextPage() {
   );
   const doctors = useQuery(api.queries.doctors.getAll);
 
-  // Actions
-  const generateSharedContext = useAction(
-    api.actions.generateSharedContext.generateSharedContext
+  // Mutations
+  const createAndGenerate = useMutation(
+    api.mutations.sharedContexts.createAndGenerate
   );
 
   const isLoading = !sessions || !reports || !doctors;
@@ -138,8 +138,8 @@ export default function ShareContextPage() {
 
     setIsSharing(true);
     try {
-      toast.info("Generating AI summary and sharing context...");
-      await generateSharedContext({
+      toast.info("Sharing context — AI summary is being generated in the background...");
+      await createAndGenerate({
         patientClerkId,
         fromDoctorClerkId,
         toDoctorClerkId: selectedDoctor,
@@ -147,7 +147,7 @@ export default function ShareContextPage() {
         reportIds: Array.from(selectedReports) as Id<"reports">[],
       });
 
-      toast.success("Context shared successfully!");
+      toast.success("Context shared! AI summary will be ready shortly.");
       setSelectedSessions(new Set());
       setSelectedReports(new Set());
       setSelectedDoctor("");

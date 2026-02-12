@@ -108,7 +108,7 @@ If everything looks safe, return { "safe": true, "alerts": [] }.
 Be thorough but avoid false alarms. Flag only medically significant issues.`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
+      model: "gemini-3-flash-preview",
       contents: prompt,
       config: {
         temperature: 0.1,

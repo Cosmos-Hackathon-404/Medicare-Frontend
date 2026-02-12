@@ -76,9 +76,10 @@ export default function AvailabilityPage() {
   }, [doctorProfile]);
 
   const addSlot = () => {
-    // Find first day without a slot
-    const usedDays = new Set(slots.map((s) => s.day));
-    const nextDay = DAYS.find((d) => !usedDays.has(d)) ?? "monday";
+    // Default to the first day that has the fewest slots, or monday
+    const dayCounts = DAYS.map((d) => ({ day: d, count: slots.filter((s) => s.day === d).length }));
+    const leastUsed = dayCounts.sort((a, b) => a.count - b.count)[0];
+    const nextDay = leastUsed?.day ?? "monday";
     setSlots([...slots, { day: nextDay, startTime: "09:00", endTime: "17:00" }]);
     setHasChanges(true);
   };
@@ -98,19 +99,22 @@ export default function AvailabilityPage() {
   const handleSave = async () => {
     if (!clerkUserId) return;
 
-    // Validate: no duplicate days
-    const days = slots.map((s) => s.day);
-    const uniqueDays = new Set(days);
-    if (uniqueDays.size !== days.length) {
-      toast.error("Each day can only have one availability slot");
-      return;
-    }
-
-    // Validate: start < end
+    // Validate: start < end for each slot
     for (const slot of slots) {
       if (slot.startTime >= slot.endTime) {
         toast.error(`Invalid time range for ${slot.day}: start must be before end`);
         return;
+      }
+    }
+
+    // Validate: no overlapping time ranges within same day
+    for (const day of DAYS) {
+      const daySlots = slots.filter((s) => s.day === day).sort((a, b) => a.startTime.localeCompare(b.startTime));
+      for (let i = 0; i < daySlots.length - 1; i++) {
+        if (daySlots[i].endTime > daySlots[i + 1].startTime) {
+          toast.error(`Overlapping time slots on ${day.charAt(0).toUpperCase() + day.slice(1)}: ${daySlots[i].startTime}-${daySlots[i].endTime} overlaps with ${daySlots[i + 1].startTime}-${daySlots[i + 1].endTime}`);
+          return;
+        }
       }
     }
 
@@ -178,7 +182,7 @@ export default function AvailabilityPage() {
             variant="outline"
             size="sm"
             onClick={addSlot}
-            disabled={slots.length >= 7}
+            disabled={slots.length >= 14}
             className="gap-1"
           >
             <Plus className="h-4 w-4" />
