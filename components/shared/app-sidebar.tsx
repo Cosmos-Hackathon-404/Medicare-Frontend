@@ -22,6 +22,7 @@ import {
 import {
   LayoutDashboard,
   Calendar,
+  Clock,
   FileText,
   Search,
   Share2,
@@ -30,6 +31,7 @@ import {
   Mic,
   CalendarCog,
   Settings,
+  MessageSquare,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { Separator } from "@/components/ui/separator";
@@ -42,11 +44,12 @@ interface NavItem {
 
 const doctorNav: NavItem[] = [
   { label: "Dashboard", href: "/doctor/dashboard", icon: LayoutDashboard },
+  { label: "Availability", href: "/doctor/availability", icon: Clock },
   { label: "Appointments", href: "/doctor/appointments", icon: Calendar },
   { label: "Sessions", href: "/doctor/sessions", icon: Mic },
+  { label: "Messages", href: "/doctor/chat", icon: MessageSquare },
   { label: "Reports", href: "/doctor/reports", icon: FileText },
   { label: "Shared Context", href: "/doctor/shared-context", icon: Inbox },
-  { label: "Availability", href: "/doctor/availability", icon: CalendarCog },
   { label: "Settings", href: "/doctor/settings", icon: Settings },
 ];
 
@@ -54,6 +57,7 @@ const patientNav: NavItem[] = [
   { label: "Dashboard", href: "/patient/dashboard", icon: LayoutDashboard },
   { label: "Appointments", href: "/patient/appointments", icon: Calendar },
   { label: "Find Doctor", href: "/patient/book", icon: Search },
+  { label: "Messages", href: "/patient/chat", icon: MessageSquare },
   { label: "My Reports", href: "/patient/reports", icon: FileText },
   { label: "Sessions", href: "/patient/sessions", icon: History },
   { label: "Share Context", href: "/patient/share", icon: Share2 },
@@ -88,6 +92,7 @@ export function AppSidebar({
                     <span className="truncate text-xs text-muted-foreground capitalize">
                       {role} Portal
                     </span>
+
                   </div>
                 </Link>
               </SidebarMenuButton>
@@ -147,7 +152,6 @@ export function AppSidebar({
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <ThemeToggle />
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarFooter>
@@ -155,12 +159,20 @@ export function AppSidebar({
 
       {/* Main content */}
       <SidebarInset className="h-svh max-h-svh">
-        <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 h-4" />
-          <span className="text-sm font-medium text-muted-foreground capitalize">
-            {role} Portal
-          </span>
+        <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b px-4 ">
+          <div className="flex items-center">
+            <SidebarTrigger className="-ml-1" />
+            <Separator orientation="vertical" className="mr-2 h-4" />
+            <span className="text-sm font-medium text-muted-foreground capitalize">
+              {role} Portal
+            </span>
+          </div>
+
+          <div className="mr-5 flex space-x-5">
+            <ThemeToggle />
+
+            <UserButton afterSignOutUrl="/" />
+          </div>
         </header>
         <div className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
           {children}

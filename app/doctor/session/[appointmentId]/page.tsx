@@ -91,6 +91,7 @@ export default function SessionPage({
 
   // Mutations & Actions
   const generateUploadUrl = useMutation(api.mutations.sessions.generateUploadUrl);
+  const createSession = useMutation(api.mutations.sessions.create);
   const updateSession = useMutation(api.mutations.sessions.update);
   const summarizeSession = useAction(api.actions.summarizeSession.summarizeSession);
 
@@ -111,9 +112,18 @@ export default function SessionPage({
       });
       const { storageId } = await uploadResponse.json();
 
-      // Step 2: Run AI summarization (creates session + updates appointment)
+      // Step 2: Create session record
       toast.info("Processing with AI...");
+      const sessionId = await createSession({
+        appointmentId: appointmentId as Id<"appointments">,
+        patientClerkId: appointment.patientClerkId,
+        doctorClerkId,
+        audioStorageId: storageId,
+      });
+
+      // Step 3: Run AI summarization
       await summarizeSession({
+        sessionId,
         appointmentId: appointmentId as Id<"appointments">,
         audioStorageId: storageId,
         patientClerkId: appointment.patientClerkId,

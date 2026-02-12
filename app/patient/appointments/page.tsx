@@ -28,6 +28,7 @@ import {
   XCircle,
   Plus,
   AlertTriangle,
+  MessageSquare,
 } from "lucide-react";
 import Link from "next/link";
 import { format, parseISO, isAfter, isBefore } from "date-fns";
@@ -347,6 +348,12 @@ function AppointmentCard({
               </AlertDialogContent>
             </AlertDialog>
           )}
+          <Link href={`/patient/chat?doctor=${appointment.doctorClerkId}`}>
+            <Button variant="outline" size="sm" className="gap-1">
+              <MessageSquare className="h-3 w-3" />
+              Message
+            </Button>
+          </Link>
         </div>
       </CardContent>
     </Card>

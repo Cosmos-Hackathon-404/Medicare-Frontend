@@ -145,3 +145,14 @@ export interface PatientContext {
   dynamicContext: string[];
   relevantMemories: string[];
 }
+
+// ===== Chat Message =====
+export interface Message {
+  _id: Id<"messages">;
+  _creationTime: number;
+  senderClerkId: string;
+  receiverClerkId: string;
+  senderRole: "doctor" | "patient";
+  content: string;
+  read: boolean;
+}

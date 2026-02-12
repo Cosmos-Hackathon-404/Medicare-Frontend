@@ -94,4 +94,15 @@ export default defineSchema({
   })
     .index("by_toDoctorClerkId", ["toDoctorClerkId"])
     .index("by_patientClerkId", ["patientClerkId"]),
+
+  // ===== Chat Messages =====
+  messages: defineTable({
+    senderClerkId: v.string(),
+    receiverClerkId: v.string(),
+    senderRole: v.string(), // "doctor" | "patient"
+    content: v.string(),
+    read: v.boolean(),
+  })
+    .index("by_conversation", ["senderClerkId", "receiverClerkId"])
+    .index("by_receiverClerkId", ["receiverClerkId"]),
 });
