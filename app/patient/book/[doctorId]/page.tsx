@@ -73,6 +73,7 @@ export default function BookDoctorPage({
 
   // Mutation
   const createAppointment = useMutation(api.mutations.appointments.create);
+  const createPatientProfile = useMutation(api.users.createPatientProfile);
 
   const isLoading = doctor === undefined;
 
@@ -85,15 +86,38 @@ export default function BookDoctorPage({
   };
 
   const handleBook = async () => {
-    if (!selectedDateTime || !doctor || !patientProfile || !user) {
+    if (!user) {
+      toast.error("Please sign in to book an appointment");
+      return;
+    }
+    if (patientProfile === undefined) {
+      toast.error("Loading your profile, please try again in a moment.");
+      return;
+    }
+    if (!selectedDateTime) {
       toast.error("Please select a time slot");
+      return;
+    }
+    if (!doctor) {
+      toast.error("Doctor information not available");
       return;
     }
 
     setIsBooking(true);
     try {
+      // Auto-create patient profile if missing
+      let currentPatientId = patientProfile?._id;
+      if (!currentPatientId) {
+        currentPatientId = await createPatientProfile({
+          clerkUserId: user.id,
+          name: user.fullName ?? user.firstName ?? "Patient",
+          email: user.emailAddresses[0]?.emailAddress ?? "",
+          age: 0,
+        });
+      }
+
       await createAppointment({
-        patientId: patientProfile._id,
+        patientId: currentPatientId,
         doctorId: doctor._id,
         patientClerkId: user.id,
         doctorClerkId: doctor.clerkUserId,

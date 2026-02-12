@@ -398,20 +398,21 @@ function AppointmentRow({ appointment }: { appointment: Appointment & { patientN
           </Link>
           {isScheduled ? (
             <>
-              {appointment.type === "online" && (
+              {appointment.type === "online" ? (
                 <Link href={`/session/join/${appointment._id}`}>
                   <Button size="sm" className="gap-1 bg-blue-600 hover:bg-blue-700">
                     <Video className="h-3 w-3" />
-                    Join Session
+                    Join Call
+                  </Button>
+                </Link>
+              ) : (
+                <Link href={`/doctor/session/${appointment._id}`}>
+                  <Button size="sm" className="gap-1">
+                    <Play className="h-3 w-3" />
+                    Start Session
                   </Button>
                 </Link>
               )}
-              <Link href={`/doctor/session/${appointment._id}`}>
-                <Button size="sm" className="gap-1">
-                  <Play className="h-3 w-3" />
-                  Start Session
-                </Button>
-              </Link>
             </>
           ) : (
             <Link href={`/doctor/session/${appointment._id}`}>
