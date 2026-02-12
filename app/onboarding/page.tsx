@@ -28,8 +28,11 @@ export default function OnboardingPage() {
     name: "",
     specialization: "",
     licenseNumber: "",
+    nmcNumber: "",
+    hospital: "",
     bio: "",
   });
+  const [nmcError, setNmcError] = useState("");
 
   // Patient form state
   const [patientForm, setPatientForm] = useState({
@@ -58,12 +61,22 @@ export default function OnboardingPage() {
 
     try {
       if (role === "doctor") {
+        // Validate NMC number client-side
+        if (!/^\d{4,6}$/.test(doctorForm.nmcNumber.trim())) {
+          setNmcError("NMC number must be a 4-6 digit number.");
+          setLoading(false);
+          return;
+        }
+        setNmcError("");
+
         await createDoctorProfile({
           clerkUserId: user.id,
           name: doctorForm.name,
           email: user.emailAddresses[0]?.emailAddress ?? "",
           specialization: doctorForm.specialization,
           licenseNumber: doctorForm.licenseNumber,
+          nmcNumber: doctorForm.nmcNumber.trim(),
+          hospital: doctorForm.hospital || undefined,
           bio: doctorForm.bio || undefined,
         });
       } else {
@@ -93,6 +106,9 @@ export default function OnboardingPage() {
       router.push(`/${role}/dashboard`);
     } catch (error) {
       console.error("Onboarding error:", error);
+      if (error instanceof Error && error.message.includes("NMC")) {
+        setNmcError(error.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -185,6 +201,68 @@ export default function OnboardingPage() {
                 className="w-full rounded-md border bg-background px-3 py-2 text-sm"
                 placeholder="MD-12345"
               />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">NMC Registration Number *</label>
+              <input
+                required
+                value={doctorForm.nmcNumber}
+                onChange={(e) => {
+                  setDoctorForm({
+                    ...doctorForm,
+                    nmcNumber: e.target.value,
+                  });
+                  setNmcError("");
+                }}
+                className={`w-full rounded-md border bg-background px-3 py-2 text-sm ${
+                  nmcError ? "border-red-500" : ""
+                }`}
+                placeholder="e.g. 12345"
+              />
+              {nmcError && (
+                <p className="text-xs text-red-500">{nmcError}</p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Enter your Nepal Medical Council (NMC) registration number (4-6 digits).
+              </p>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Hospital / Institution *</label>
+              <input
+                required
+                value={doctorForm.hospital}
+                onChange={(e) =>
+                  setDoctorForm({
+                    ...doctorForm,
+                    hospital: e.target.value,
+                  })
+                }
+                className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                placeholder="e.g. Tribhuvan University Teaching Hospital"
+                list="hospital-suggestions"
+              />
+              <datalist id="hospital-suggestions">
+                <option value="Tribhuvan University Teaching Hospital" />
+                <option value="B.P. Koirala Institute of Health Sciences" />
+                <option value="Bir Hospital" />
+                <option value="Patan Hospital" />
+                <option value="Kanti Children's Hospital" />
+                <option value="Nepal Medical College" />
+                <option value="Kathmandu Medical College" />
+                <option value="KIST Medical College" />
+                <option value="Manipal College of Medical Sciences" />
+                <option value="Lumbini Medical College" />
+                <option value="Chitwan Medical College" />
+                <option value="Nobel Medical College" />
+                <option value="Grande International Hospital" />
+                <option value="Norvic International Hospital" />
+                <option value="Nepal Army Institute of Health Sciences" />
+                <option value="Pokhara Academy of Health Sciences" />
+                <option value="National Academy of Medical Sciences" />
+              </datalist>
+              <p className="text-xs text-muted-foreground">
+                Select an NMC-recognized hospital for automatic verification.
+              </p>
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Bio</label>

@@ -9,6 +9,9 @@ export default defineSchema({
     email: v.string(),
     specialization: v.string(),
     licenseNumber: v.string(),
+    nmcNumber: v.string(), // Nepal Medical Council registration number
+    hospital: v.optional(v.string()), // Affiliated hospital name
+    verified: v.boolean(), // NMC verification status
     bio: v.optional(v.string()),
     availableSlots: v.optional(
       v.array(
@@ -21,7 +24,8 @@ export default defineSchema({
     ),
   })
     .index("by_clerkUserId", ["clerkUserId"])
-    .index("by_specialization", ["specialization"]),
+    .index("by_specialization", ["specialization"])
+    .index("by_nmcNumber", ["nmcNumber"]),
 
   patientProfiles: defineTable({
     clerkUserId: v.string(),

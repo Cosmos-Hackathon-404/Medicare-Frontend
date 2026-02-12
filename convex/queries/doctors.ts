@@ -20,6 +20,9 @@ export const search = query({
       results = await ctx.db.query("doctorProfiles").collect();
     }
 
+    // Only return verified doctors to patients
+    results = results.filter((doc) => doc.verified === true);
+
     // Filter by name if provided (case-insensitive)
     if (args.name) {
       const searchName = args.name.toLowerCase();

@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Calendar, User, MessageSquare } from "lucide-react";
+import { Calendar, User, MessageSquare, BadgeCheck } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import type { DoctorProfile } from "@/types";
@@ -39,12 +39,24 @@ export function DoctorCard({ doctor, className }: DoctorCardProps) {
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-lg truncate">
-                Dr. {doctor.name}
-              </h3>
-              <Badge variant="secondary" className="mt-1">
-                {doctor.specialization}
-              </Badge>
+              <div className="flex items-center gap-1.5">
+                <h3 className="font-semibold text-lg truncate">
+                  Dr. {doctor.name}
+                </h3>
+                {doctor.verified && (
+                  <BadgeCheck className="h-5 w-5 shrink-0 text-blue-500" />
+                )}
+              </div>
+              <div className="flex items-center gap-2 mt-1">
+                <Badge variant="secondary">
+                  {doctor.specialization}
+                </Badge>
+                {doctor.verified && (
+                  <Badge variant="outline" className="text-blue-600 border-blue-200 bg-blue-50 dark:bg-blue-950 dark:border-blue-800 dark:text-blue-400 text-xs">
+                    NMC Verified
+                  </Badge>
+                )}
+              </div>
             </div>
           </div>
         </div>

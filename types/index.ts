@@ -19,6 +19,9 @@ export interface DoctorProfile {
   email: string;
   specialization: string;
   licenseNumber: string;
+  nmcNumber: string;
+  hospital?: string;
+  verified: boolean;
   bio?: string;
   availableSlots?: AvailableSlot[];
 }

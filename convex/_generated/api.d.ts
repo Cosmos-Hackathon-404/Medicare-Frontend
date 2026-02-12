@@ -12,6 +12,7 @@ import type * as actions_analyzeReport from "../actions/analyzeReport.js";
 import type * as actions_configureSupermemory from "../actions/configureSupermemory.js";
 import type * as actions_generateSharedContext from "../actions/generateSharedContext.js";
 import type * as actions_summarizeSession from "../actions/summarizeSession.js";
+import type * as mutations_admin from "../mutations/admin.js";
 import type * as mutations_appointments from "../mutations/appointments.js";
 import type * as mutations_doctors from "../mutations/doctors.js";
 import type * as mutations_messages from "../mutations/messages.js";
@@ -38,6 +39,7 @@ declare const fullApi: ApiFromModules<{
   "actions/configureSupermemory": typeof actions_configureSupermemory;
   "actions/generateSharedContext": typeof actions_generateSharedContext;
   "actions/summarizeSession": typeof actions_summarizeSession;
+  "mutations/admin": typeof mutations_admin;
   "mutations/appointments": typeof mutations_appointments;
   "mutations/doctors": typeof mutations_doctors;
   "mutations/messages": typeof mutations_messages;

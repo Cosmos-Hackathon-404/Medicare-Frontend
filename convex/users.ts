@@ -1,6 +1,50 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
+// ===== Nepal Medical Council (NMC) Recognized Hospitals =====
+const NMC_RECOGNIZED_HOSPITALS = [
+  "Tribhuvan University Teaching Hospital",
+  "B.P. Koirala Institute of Health Sciences",
+  "Bir Hospital",
+  "Patan Hospital",
+  "Kanti Children's Hospital",
+  "Nepal Medical College",
+  "Kathmandu Medical College",
+  "KIST Medical College",
+  "Manipal College of Medical Sciences",
+  "Lumbini Medical College",
+  "Universal College of Medical Sciences",
+  "College of Medical Sciences",
+  "National Academy of Medical Sciences",
+  "Nepalgunj Medical College",
+  "Chitwan Medical College",
+  "Nobel Medical College",
+  "Kathmandu University School of Medical Sciences",
+  "Gandaki Medical College",
+  "Pokhara Academy of Health Sciences",
+  "Rapti Academy of Health Sciences",
+  "Karnali Academy of Health Sciences",
+  "Birat Medical College",
+  "Devdaha Medical College",
+  "Janaki Medical College",
+  "National Medical College",
+  "Nepal Army Institute of Health Sciences",
+  "Nepal Police Hospital",
+  "Grande International Hospital",
+  "Norvic International Hospital",
+  "Sumeru Hospital",
+  "Om Hospital",
+  "Hams Hospital",
+  "Star Hospital",
+  "Mediciti Hospital",
+  "Vayodha Hospital",
+];
+
+// Validate NMC number format (numeric, 4-6 digits)
+function isValidNmcNumber(nmcNumber: string): boolean {
+  return /^\d{4,6}$/.test(nmcNumber.trim());
+}
+
 // ===== Create Doctor Profile =====
 export const createDoctorProfile = mutation({
   args: {
@@ -9,6 +53,8 @@ export const createDoctorProfile = mutation({
     email: v.string(),
     specialization: v.string(),
     licenseNumber: v.string(),
+    nmcNumber: v.string(),
+    hospital: v.optional(v.string()),
     bio: v.optional(v.string()),
     availableSlots: v.optional(
       v.array(
@@ -29,7 +75,40 @@ export const createDoctorProfile = mutation({
 
     if (existing) return existing._id;
 
-    return await ctx.db.insert("doctorProfiles", args);
+    // Validate NMC number format
+    if (!isValidNmcNumber(args.nmcNumber)) {
+      throw new Error(
+        "Invalid NMC number. Must be a 4-6 digit number issued by Nepal Medical Council."
+      );
+    }
+
+    // Check NMC number is not already registered
+    const nmcExists = await ctx.db
+      .query("doctorProfiles")
+      .withIndex("by_nmcNumber", (q) => q.eq("nmcNumber", args.nmcNumber.trim()))
+      .first();
+
+    if (nmcExists) {
+      throw new Error(
+        "This NMC number is already registered with another doctor."
+      );
+    }
+
+    // Verify hospital is in the recognized list (if provided)
+    const hospitalVerified = args.hospital
+      ? NMC_RECOGNIZED_HOSPITALS.some(
+          (h) => h.toLowerCase() === args.hospital!.toLowerCase()
+        )
+      : false;
+
+    // Doctor is verified if NMC number format is valid AND hospital is recognized
+    const verified = hospitalVerified;
+
+    return await ctx.db.insert("doctorProfiles", {
+      ...args,
+      nmcNumber: args.nmcNumber.trim(),
+      verified,
+    });
   },
 });
 
