@@ -1,8 +1,37 @@
+'use client'
+
 import { Button } from '@/components/ui/button'
 import { ArrowRight, Shield, Zap } from 'lucide-react'
+import Image from 'next/image'
 import Link from 'next/link'
+import { useEffect, useState } from 'react'
+
+const heroImages = [
+  {
+    src: '/medical.png',
+    alt: 'Medical consultation',
+  },
+  {
+    src: '/medical_cleaned.png',
+    alt: 'Healthcare services',
+  },
+]
 
 export function Hero() {
+  const [currentIndex, setCurrentIndex] = useState(0)
+  const [fade, setFade] = useState(true)
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setFade(false)
+      setTimeout(() => {
+        setCurrentIndex((prev) => (prev + 1) % heroImages.length)
+        setFade(true)
+      }, 400)
+    }, 4000)
+    return () => clearInterval(interval)
+  }, [])
+
   return (
     <section className="min-h-screen pt-24 pb-12 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-background via-background to-primary/5 flex items-center">
       <div className="max-w-7xl mx-auto w-full">
@@ -16,7 +45,7 @@ export function Hero() {
             </div>
 
             <h1 className="text-5xl sm:text-6xl font-bold text-foreground leading-tight text-balance">
-              Bridge the Gap Between Doctors and Patients
+              An Intelligent AI Layer Between Doctor and Patient
             </h1>
 
             <p className="text-xl text-muted-foreground leading-relaxed text-balance">
@@ -56,25 +85,18 @@ export function Hero() {
             </div>
           </div>
 
-          {/* Right Side - Visual Element */}
+          {/* Right Side - Rotating Medical Illustration */}
           <div className="hidden lg:flex items-center justify-center">
-            <div className="relative isolate overflow-hidden w-full h-96">
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-accent/20 rounded-3xl transform rotate-6"></div>
-              <div className="absolute inset-0 bg-card rounded-2xl border border-border shadow-lg p-6 transform -rotate-3 z-10">
-                <div className="space-y-4">
-                  <div className="h-4 bg-muted rounded w-3/4"></div>
-                  <div className="h-4 bg-muted rounded w-1/2"></div>
-                  <div className="h-32 bg-primary/10 rounded-lg mt-6"></div>
-                </div>
-              </div>
-              <div className="absolute inset-0 bg-card rounded-2xl border border-border shadow-lg p-6 transform rotate-3 z-20">
-                <div className="h-3 bg-primary rounded-full w-1/3 mb-4"></div>
-                <div className="space-y-3">
-                  <div className="h-3 bg-muted rounded w-full"></div>
-                  <div className="h-3 bg-muted rounded w-4/5"></div>
-                  <div className="h-16 bg-primary/10 rounded-lg mt-4"></div>
-                </div>
-              </div>
+            <div className="relative w-full h-[28rem] flex items-center justify-center">
+              <Image
+                src={heroImages[currentIndex].src}
+                alt={heroImages[currentIndex].alt}
+                width={500}
+                height={450}
+                className={`object-contain transition-opacity duration-400 select-none ${fade ? 'opacity-100' : 'opacity-0'}`}
+                unoptimized
+                priority
+              />
             </div>
           </div>
         </div>
